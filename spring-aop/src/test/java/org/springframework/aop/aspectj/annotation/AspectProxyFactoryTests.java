@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,16 @@
 
 package org.springframework.aop.aspectj.annotation;
 
-import java.io.Serializable;
-import java.util.Arrays;
-
 import org.apache.commons.logging.LogFactory;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.testfixture.io.SerializationTestUtils;
 import test.aop.PerThisAspect;
 
-import org.springframework.core.testfixture.io.SerializationTestUtils;
+import java.io.Serializable;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -89,7 +88,7 @@ public class AspectProxyFactoryTests {
 		proxyFactory.addAspect(LoggingAspectOnVarargs.class);
 		ITestBean proxy = proxyFactory.getProxy();
 		assertThat(proxy.doWithVarargs(MyEnum.A, MyOtherEnum.C)).isTrue();
-		ITestBean tb = SerializationTestUtils.serializeAndDeserialize(proxy);
+		ITestBean tb = (ITestBean) SerializationTestUtils.serializeAndDeserialize(proxy);
 		assertThat(tb.doWithVarargs(MyEnum.A, MyOtherEnum.C)).isTrue();
 	}
 
@@ -108,14 +107,15 @@ public class AspectProxyFactoryTests {
 		ITestBean proxy = proxyFactory.getProxy();
 		assertThat(proxy.getAge()).isEqualTo((target.getAge() * multiple));
 
-		ITestBean serializedProxy = SerializationTestUtils.serializeAndDeserialize(proxy);
+		ITestBean serializedProxy = (ITestBean) SerializationTestUtils.serializeAndDeserialize(proxy);
 		assertThat(serializedProxy.getAge()).isEqualTo((target.getAge() * multiple));
 	}
 
 	@Test
 	public void testWithNonSingletonAspectInstance() throws Exception {
 		AspectJProxyFactory pf = new AspectJProxyFactory();
-		assertThatIllegalArgumentException().isThrownBy(() -> pf.addAspect(new PerThisAspect()));
+		assertThatIllegalArgumentException().isThrownBy(() ->
+				pf.addAspect(new PerThisAspect()));
 	}
 
 	@Test  // SPR-13328

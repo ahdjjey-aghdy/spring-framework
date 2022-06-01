@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.xml.namespace.QName;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import org.springframework.core.ResolvableType;
-import org.springframework.core.codec.DecodingException;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.testfixture.io.buffer.AbstractLeakCheckingTests;
 import org.springframework.http.MediaType;
@@ -225,7 +225,7 @@ public class Jaxb2XmlDecoderTests extends AbstractLeakCheckingTests {
 		Mono<Object> result = this.decoder.decodeToMono(source, ResolvableType.forClass(Pojo.class), null, HINTS);
 
 		StepVerifier.create(result).verifyErrorSatisfies(ex ->
-				assertThat(Exceptions.unwrap(ex)).isInstanceOf(DecodingException.class));
+				assertThat(Exceptions.unwrap(ex)).isInstanceOf(XMLStreamException.class));
 	}
 
 	@Test
@@ -253,7 +253,7 @@ public class Jaxb2XmlDecoderTests extends AbstractLeakCheckingTests {
 	}
 
 
-	@jakarta.xml.bind.annotation.XmlType(name = "pojo")
+	@javax.xml.bind.annotation.XmlType(name = "pojo")
 	public static class TypePojo {
 
 		private String foo;
@@ -289,7 +289,8 @@ public class Jaxb2XmlDecoderTests extends AbstractLeakCheckingTests {
 			if (this == o) {
 				return true;
 			}
-			if (o instanceof TypePojo other) {
+			if (o instanceof TypePojo) {
+				TypePojo other = (TypePojo) o;
 				return this.foo.equals(other.foo) && this.bar.equals(other.bar);
 			}
 			return false;

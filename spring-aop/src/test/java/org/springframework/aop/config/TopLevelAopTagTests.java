@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.aop.config;
 
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 
@@ -30,10 +29,10 @@ import static org.springframework.core.testfixture.io.ResourceTestUtils.qualifie
  * @author Rob Harrop
  * @author Chris Beams
  */
-class TopLevelAopTagTests {
+public class TopLevelAopTagTests {
 
 	@Test
-	void parse() {
+	public void testParse() {
 		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 		new XmlBeanDefinitionReader(beanFactory).loadBeanDefinitions(
 				qualifiedResource(TopLevelAopTagTests.class, "context.xml"));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.springframework.messaging.rsocket.annotation.support;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +29,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.AbstractMessageCondition;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 
 /**
  * A condition to assist with mapping onto handler methods based on the RSocket
@@ -70,11 +69,26 @@ public class RSocketFrameTypeMessageCondition extends AbstractMessageCondition<R
 	public static final RSocketFrameTypeMessageCondition EMPTY_CONDITION = new RSocketFrameTypeMessageCondition();
 
 
+	/**
+	 * Condition to match "REQUEST_FNF", "REQUEST_RESPONSE", "REQUEST_STREAM",
+	 * and "REQUEST_CHANNEL".
+	 * @deprecated as of 5.2.2 because matching to all interaction types is too
+	 * flexible. Please use one of the other constants in this class that match
+	 * to specific frames.
+	 */
+	@Deprecated
+	public static final RSocketFrameTypeMessageCondition REQUEST_CONDITION =
+			new RSocketFrameTypeMessageCondition(
+					FrameType.REQUEST_FNF,
+					FrameType.REQUEST_RESPONSE,
+					FrameType.REQUEST_STREAM,
+					FrameType.REQUEST_CHANNEL);
+
 	/** Per FrameType cache to return ready instances from getMatchingCondition. */
 	private static final Map<String, RSocketFrameTypeMessageCondition> frameTypeConditionCache;
 
 	static {
-		frameTypeConditionCache = CollectionUtils.newHashMap(FrameType.values().length);
+		frameTypeConditionCache = new HashMap<>(FrameType.values().length);
 		for (FrameType type : FrameType.values()) {
 			frameTypeConditionCache.put(type.name(), new RSocketFrameTypeMessageCondition(type));
 		}
@@ -117,6 +131,7 @@ public class RSocketFrameTypeMessageCondition extends AbstractMessageCondition<R
 	 * @param message the current message
 	 * @return the frame type or {@code null} if not found
 	 */
+	@SuppressWarnings("ConstantConditions")
 	@Nullable
 	public static FrameType getFrameType(Message<?> message) {
 		return (FrameType) message.getHeaders().get(RSocketFrameTypeMessageCondition.FRAME_TYPE_HEADER);
@@ -192,16 +207,20 @@ public class RSocketFrameTypeMessageCondition extends AbstractMessageCondition<R
 	 * @since 5.2.2
 	 */
 	public static RSocketFrameTypeMessageCondition getCondition(int cardinalityIn, int cardinalityOut) {
-		return switch (cardinalityIn) {
-			case 0, 1 -> switch (cardinalityOut) {
-				case 0 -> REQUEST_FNF_OR_RESPONSE_CONDITION;
-				case 1 -> REQUEST_RESPONSE_CONDITION;
-				case 2 -> REQUEST_STREAM_CONDITION;
-				default -> throw new IllegalStateException("Invalid response cardinality: " + cardinalityOut);
-			};
-			case 2 -> REQUEST_CHANNEL_CONDITION;
-			default -> throw new IllegalStateException("Invalid request cardinality: " + cardinalityIn);
-		};
+		switch (cardinalityIn) {
+			case 0:
+			case 1:
+				switch (cardinalityOut) {
+					case 0: return REQUEST_FNF_OR_RESPONSE_CONDITION;
+					case 1: return REQUEST_RESPONSE_CONDITION;
+					case 2: return REQUEST_STREAM_CONDITION;
+					default: throw new IllegalStateException("Invalid cardinality: " + cardinalityOut);
+				}
+			case 2:
+				return REQUEST_CHANNEL_CONDITION;
+			default:
+				throw new IllegalStateException("Invalid cardinality: " + cardinalityIn);
+		}
 	}
 
 }

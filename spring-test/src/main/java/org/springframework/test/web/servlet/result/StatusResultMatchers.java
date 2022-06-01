@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.test.web.servlet.result;
 import org.hamcrest.Matcher;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
 
@@ -52,7 +51,7 @@ public class StatusResultMatchers {
 	 * Assert the response status code with the given Hamcrest {@link Matcher}.
 	 * Use the {@code StatusResultMatchers.isEqualTo} extension in Kotlin.
 	 */
-	public ResultMatcher is(Matcher<? super Integer> matcher) {
+	public ResultMatcher is(Matcher<Integer> matcher) {
 		return result -> assertThat("Response status", result.getResponse().getStatus(), matcher);
 	}
 
@@ -105,7 +104,9 @@ public class StatusResultMatchers {
 	}
 
 	private HttpStatus.Series getHttpStatusSeries(MvcResult result) {
-		return HttpStatus.Series.resolve(result.getResponse().getStatus());
+		int statusValue = result.getResponse().getStatus();
+		HttpStatus status = HttpStatus.valueOf(statusValue);
+		return status.series();
 	}
 
 	/**
@@ -389,8 +390,8 @@ public class StatusResultMatchers {
 
 	/**
 	 * Assert the response status code is {@code HttpStatus.REQUEST_ENTITY_TOO_LARGE} (413).
-	 * @see #isPayloadTooLarge()
 	 * @deprecated matching the deprecation of {@code HttpStatus.REQUEST_ENTITY_TOO_LARGE}
+	 * @see #isPayloadTooLarge()
 	 */
 	@Deprecated
 	public ResultMatcher isRequestEntityTooLarge() {
@@ -407,8 +408,8 @@ public class StatusResultMatchers {
 
 	/**
 	 * Assert the response status code is {@code HttpStatus.REQUEST_URI_TOO_LONG} (414).
-	 * @see #isUriTooLong()
 	 * @deprecated matching the deprecation of {@code HttpStatus.REQUEST_URI_TOO_LONG}
+	 * @see #isUriTooLong()
 	 */
 	@Deprecated
 	public ResultMatcher isRequestUriTooLong() {
@@ -622,7 +623,7 @@ public class StatusResultMatchers {
 	/**
 	 * Match the expected response status to that of the HttpServletResponse.
 	 */
-	private ResultMatcher matcher(HttpStatusCode status) {
+	private ResultMatcher matcher(HttpStatus status) {
 		return result -> assertEquals("Status", status.value(), result.getResponse().getStatus());
 	}
 

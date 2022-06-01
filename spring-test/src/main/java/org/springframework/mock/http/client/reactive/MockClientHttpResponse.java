@@ -26,11 +26,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.client.reactive.ClientHttpResponse;
@@ -47,7 +47,7 @@ import org.springframework.util.MultiValueMap;
  */
 public class MockClientHttpResponse implements ClientHttpResponse {
 
-	private final HttpStatusCode statusCode;
+	private final int status;
 
 	private final HttpHeaders headers = new HttpHeaders();
 
@@ -55,33 +55,35 @@ public class MockClientHttpResponse implements ClientHttpResponse {
 
 	private Flux<DataBuffer> body = Flux.empty();
 
+	private final DataBufferFactory bufferFactory = new DefaultDataBufferFactory();
+
+
+	public MockClientHttpResponse(HttpStatus status) {
+		Assert.notNull(status, "HttpStatus is required");
+		this.status = status.value();
+	}
 
 	public MockClientHttpResponse(int status) {
-		this(HttpStatusCode.valueOf(status));
-	}
-
-	public MockClientHttpResponse(HttpStatusCode status) {
-		Assert.notNull(status, "HttpStatusCode is required");
-		this.statusCode = status;
+		Assert.isTrue(status > 99 && status < 1000, "Status must be between 100 and 999");
+		this.status = status;
 	}
 
 
 	@Override
-	public HttpStatusCode getStatusCode() {
-		return this.statusCode;
+	public HttpStatus getStatusCode() {
+		return HttpStatus.valueOf(this.status);
 	}
 
 	@Override
-	@Deprecated
 	public int getRawStatusCode() {
-		return this.statusCode.value();
+		return this.status;
 	}
 
 	@Override
 	public HttpHeaders getHeaders() {
 		if (!getCookies().isEmpty() && this.headers.get(HttpHeaders.SET_COOKIE) == null) {
 			getCookies().values().stream().flatMap(Collection::stream)
-					.forEach(cookie -> this.headers.add(HttpHeaders.SET_COOKIE, cookie.toString()));
+					.forEach(cookie -> getHeaders().add(HttpHeaders.SET_COOKIE, cookie.toString()));
 		}
 		return this.headers;
 	}
@@ -107,7 +109,7 @@ public class MockClientHttpResponse implements ClientHttpResponse {
 	private DataBuffer toDataBuffer(String body, Charset charset) {
 		byte[] bytes = body.getBytes(charset);
 		ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-		return DefaultDataBufferFactory.sharedInstance.wrap(byteBuffer);
+		return this.bufferFactory.wrap(byteBuffer);
 	}
 
 	@Override
@@ -141,11 +143,7 @@ public class MockClientHttpResponse implements ClientHttpResponse {
 
 	@Override
 	public String toString() {
-		if (this.statusCode instanceof HttpStatus status) {
-			return status.name() + "(" + this.statusCode + ")" + this.headers;
-		}
-		else {
-			return "Status (" + this.statusCode + ")" + this.headers;
-		}
+		HttpStatus code = HttpStatus.resolve(this.status);
+		return (code != null ? code.name() + "(" + this.status + ")" : "Status (" + this.status + ")") + this.headers;
 	}
 }

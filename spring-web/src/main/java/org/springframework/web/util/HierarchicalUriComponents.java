@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
@@ -45,7 +46,6 @@ import org.springframework.util.StringUtils;
  * @author Juergen Hoeller
  * @author Rossen Stoyanchev
  * @author Phillip Webb
- * @author Sam Brannen
  * @since 3.1.3
  * @see <a href="https://tools.ietf.org/html/rfc3986#section-1.2.3">Hierarchical URIs</a>
  */
@@ -192,12 +192,7 @@ final class HierarchicalUriComponents extends UriComponents {
 			throw new IllegalStateException(
 					"The port contains a URI variable but has not been expanded yet: " + this.port);
 		}
-		try {
-			return Integer.parseInt(this.port);
-		}
-		catch (NumberFormatException ex) {
-			throw new IllegalStateException("The port must be an integer: " + this.port);
-		}
+		return Integer.parseInt(this.port);
 	}
 
 	@Override
@@ -557,9 +552,10 @@ final class HierarchicalUriComponents extends UriComponents {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof HierarchicalUriComponents otherComp)) {
+		if (!(other instanceof HierarchicalUriComponents)) {
 			return false;
 		}
+		HierarchicalUriComponents otherComp = (HierarchicalUriComponents) other;
 		return (ObjectUtils.nullSafeEquals(getScheme(), otherComp.getScheme()) &&
 				ObjectUtils.nullSafeEquals(getUserInfo(), otherComp.getUserInfo()) &&
 				ObjectUtils.nullSafeEquals(getHost(), otherComp.getHost()) &&
@@ -771,47 +767,43 @@ final class HierarchicalUriComponents extends UriComponents {
 
 		private final StringBuilder output = new StringBuilder();
 
-		private boolean variableWithNameAndRegex;
 
 		public UriTemplateEncoder(Charset charset) {
 			this.charset = charset;
 		}
 
+
 		@Override
 		public String apply(String source, Type type) {
-			// URI variable only?
-			if (isUriVariable(source)) {
+
+			// Only URI variable (nothing to encode)..
+			if (source.length() > 1 && source.charAt(0) == '{' && source.charAt(source.length() -1) == '}') {
 				return source;
 			}
-			// Literal template only?
+
+			// Only literal (encode full source)..
 			if (source.indexOf('{') == -1) {
 				return encodeUriComponent(source, this.charset, type);
 			}
+
+			// Mixed literal parts and URI variables, maybe (encode literal parts only)..
 			int level = 0;
 			clear(this.currentLiteral);
 			clear(this.currentVariable);
 			clear(this.output);
-			for (int i = 0; i < source.length(); i++) {
-				char c = source.charAt(i);
-				if (c == ':' && level == 1) {
-					this.variableWithNameAndRegex = true;
-				}
+			for (char c : source.toCharArray()) {
 				if (c == '{') {
 					level++;
 					if (level == 1) {
-						append(this.currentLiteral, true, type);
+						encodeAndAppendCurrentLiteral(type);
 					}
 				}
 				if (c == '}' && level > 0) {
 					level--;
 					this.currentVariable.append('}');
 					if (level == 0) {
-						boolean encode = !isUriVariable(this.currentVariable);
-						append(this.currentVariable, encode, type);
-					}
-					else if (!this.variableWithNameAndRegex) {
-						append(this.currentVariable, true, type);
-						level = 0;
+						this.output.append(this.currentVariable);
+						clear(this.currentVariable);
 					}
 				}
 				else if (level > 0) {
@@ -824,38 +816,13 @@ final class HierarchicalUriComponents extends UriComponents {
 			if (level > 0) {
 				this.currentLiteral.append(this.currentVariable);
 			}
-			append(this.currentLiteral, true, type);
+			encodeAndAppendCurrentLiteral(type);
 			return this.output.toString();
 		}
 
-		/**
-		 * Whether the given String is a single URI variable that can be
-		 * expanded. It must have '{' and '}' surrounding non-empty text and no
-		 * nested placeholders unless it is a variable with regex syntax,
-		 * e.g. {@code "/{year:\d{1,4}}"}.
-		 */
-		private boolean isUriVariable(CharSequence source) {
-			if (source.length() < 2 || source.charAt(0) != '{' || source.charAt(source.length() -1) != '}') {
-				return false;
-			}
-			boolean hasText = false;
-			for (int i = 1; i < source.length() - 1; i++) {
-				char c = source.charAt(i);
-				if (c == ':' && i > 1) {
-					return true;
-				}
-				if (c == '{' || c == '}') {
-					return false;
-				}
-				hasText = (hasText || !Character.isWhitespace(c));
-			}
-			return hasText;
-		}
-
-		private void append(StringBuilder sb, boolean encode, Type type) {
-			this.output.append(encode ? encodeUriComponent(sb.toString(), this.charset, type) : sb);
-			clear(sb);
-			this.variableWithNameAndRegex = false;
+		private void encodeAndAppendCurrentLiteral(Type type) {
+			this.output.append(encodeUriComponent(this.currentLiteral.toString(), this.charset, type));
+			clear(this.currentLiteral);
 		}
 
 		private void clear(StringBuilder sb) {
@@ -902,7 +869,7 @@ final class HierarchicalUriComponents extends UriComponents {
 		@Override
 		public List<String> getPathSegments() {
 			String[] segments = StringUtils.tokenizeToStringArray(getPath(), PATH_DELIMITER_STRING);
-			return List.of(segments);
+			return Collections.unmodifiableList(Arrays.asList(segments));
 		}
 
 		@Override
@@ -929,8 +896,8 @@ final class HierarchicalUriComponents extends UriComponents {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			return (this == other || (other instanceof FullPathComponent fullPathComponent &&
-					getPath().equals(fullPathComponent.getPath())));
+			return (this == other || (other instanceof FullPathComponent &&
+					getPath().equals(((FullPathComponent) other).getPath())));
 		}
 
 		@Override
@@ -1003,8 +970,8 @@ final class HierarchicalUriComponents extends UriComponents {
 
 		@Override
 		public boolean equals(@Nullable Object other) {
-			return (this == other || (other instanceof PathSegmentComponent pathSegmentComponent &&
-					getPathSegments().equals(pathSegmentComponent.getPathSegments())));
+			return (this == other || (other instanceof PathSegmentComponent &&
+					getPathSegments().equals(((PathSegmentComponent) other).getPathSegments())));
 		}
 
 		@Override

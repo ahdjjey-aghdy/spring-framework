@@ -18,7 +18,8 @@ package org.springframework.test.context.testng.web;
 
 import java.io.File;
 
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletContext;
+
 import org.testng.annotations.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,7 +89,7 @@ public class TestNGSpringContextWebTests extends AbstractTestNGSpringContextTest
 	}
 
 	@Test
-	public void basicWacFeatures() throws Exception {
+	void basicWacFeatures() throws Exception {
 		assertThat(wac.getServletContext()).as("ServletContext should be set in the WAC.").isNotNull();
 
 		assertThat(servletContext).as("ServletContext should have been set via ServletContextAware.").isNotNull();
@@ -113,7 +114,7 @@ public class TestNGSpringContextWebTests extends AbstractTestNGSpringContextTest
 	}
 
 	@Test
-	public void fooEnigmaAutowired() {
+	void fooEnigmaAutowired() {
 		assertThat(foo).isEqualTo("enigma");
 	}
 

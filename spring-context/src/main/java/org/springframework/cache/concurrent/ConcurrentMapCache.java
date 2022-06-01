@@ -16,6 +16,9 @@
 
 package org.springframework.cache.concurrent;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -42,7 +45,6 @@ import org.springframework.util.Assert;
  * @author Juergen Hoeller
  * @author Stephane Nicoll
  * @since 3.1
- * @see ConcurrentMapCacheManager
  */
 public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 
@@ -188,7 +190,7 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 		Object storeValue = super.toStoreValue(userValue);
 		if (this.serialization != null) {
 			try {
-				return this.serialization.serializeToByteArray(storeValue);
+				return serializeValue(this.serialization, storeValue);
 			}
 			catch (Throwable ex) {
 				throw new IllegalArgumentException("Failed to serialize cache value '" + userValue +
@@ -200,11 +202,17 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 		}
 	}
 
+	private static Object serializeValue(SerializationDelegate serialization, Object storeValue) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		serialization.serialize(storeValue, out);
+		return out.toByteArray();
+	}
+
 	@Override
 	protected Object fromStoreValue(@Nullable Object storeValue) {
 		if (storeValue != null && this.serialization != null) {
 			try {
-				return super.fromStoreValue(this.serialization.deserializeFromByteArray((byte[]) storeValue));
+				return super.fromStoreValue(deserializeValue(this.serialization, storeValue));
 			}
 			catch (Throwable ex) {
 				throw new IllegalArgumentException("Failed to deserialize cache value '" + storeValue + "'", ex);
@@ -213,6 +221,12 @@ public class ConcurrentMapCache extends AbstractValueAdaptingCache {
 		else {
 			return super.fromStoreValue(storeValue);
 		}
+
+	}
+
+	private static Object deserializeValue(SerializationDelegate serialization, Object storeValue) throws IOException {
+		ByteArrayInputStream in = new ByteArrayInputStream((byte[]) storeValue);
+		return serialization.deserialize(in);
 	}
 
 }

@@ -25,11 +25,9 @@ import org.springframework.lang.Nullable;
 /**
  * Convenient TargetSourceCreator using bean name prefixes to create one of three
  * well-known TargetSource types:
- * <ul>
- * <li>: CommonsPool2TargetSource</li>
- * <li>% ThreadLocalTargetSource</li>
- * <li>! PrototypeTargetSource</li>
- * </ul>
+ * <li>: CommonsPool2TargetSource
+ * <li>% ThreadLocalTargetSource
+ * <li>! PrototypeTargetSource
  *
  * @author Rod Johnson
  * @author Stephane Nicoll

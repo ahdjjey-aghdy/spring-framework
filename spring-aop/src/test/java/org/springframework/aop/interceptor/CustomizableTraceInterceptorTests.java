@@ -24,9 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 /**
  * @author Rob Harrop
@@ -136,20 +134,20 @@ public class CustomizableTraceInterceptorTests {
 
 		given(methodInvocation.getMethod()).willReturn(String.class.getMethod("toString", new Class[0]));
 		given(methodInvocation.getThis()).willReturn(this);
-		given(methodInvocation.getArguments()).willReturn(new Object[]{"$ One \\$", 2L});
+		given(methodInvocation.getArguments()).willReturn(new Object[]{"$ One \\$", new Long(2)});
 		given(methodInvocation.proceed()).willReturn("Hello!");
 
 		Log log = mock(Log.class);
 		given(log.isTraceEnabled()).willReturn(true);
 
 		CustomizableTraceInterceptor interceptor = new StubCustomizableTraceInterceptor(log);
-		interceptor.setEnterMessage(new StringBuilder()
+		interceptor.setEnterMessage(new StringBuffer()
 			.append("Entering the '").append(CustomizableTraceInterceptor.PLACEHOLDER_METHOD_NAME)
 			.append("' method of the [").append(CustomizableTraceInterceptor.PLACEHOLDER_TARGET_CLASS_NAME)
 			.append("] class with the following args (").append(CustomizableTraceInterceptor.PLACEHOLDER_ARGUMENTS)
 			.append(") and arg types (").append(CustomizableTraceInterceptor.PLACEHOLDER_ARGUMENT_TYPES)
 			.append(").").toString());
-		interceptor.setExitMessage(new StringBuilder()
+		interceptor.setExitMessage(new StringBuffer()
 			.append("Exiting the '").append(CustomizableTraceInterceptor.PLACEHOLDER_METHOD_NAME)
 			.append("' method of the [").append(CustomizableTraceInterceptor.PLACEHOLDER_TARGET_CLASS_SHORT_NAME)
 			.append("] class with the following args (").append(CustomizableTraceInterceptor.PLACEHOLDER_ARGUMENTS)

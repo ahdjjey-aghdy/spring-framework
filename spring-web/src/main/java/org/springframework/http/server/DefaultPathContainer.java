@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,11 @@ import org.springframework.util.StringUtils;
  * Default implementation of {@link PathContainer}.
  *
  * @author Rossen Stoyanchev
- * @author Sam Brannen
  * @since 5.0
  */
 final class DefaultPathContainer implements PathContainer {
+
+	private static final MultiValueMap<String, String> EMPTY_PARAMS = new LinkedMultiValueMap<>();
 
 	private static final PathContainer EMPTY_PATH = new DefaultPathContainer("", Collections.emptyList());
 
@@ -119,7 +120,7 @@ final class DefaultPathContainer implements PathContainer {
 			if (!segment.isEmpty()) {
 				elements.add(options.shouldDecodeAndParseSegments() ?
 						decodeAndParsePathSegment(segment) :
-						DefaultPathSegment.from(segment, separatorElement));
+						new DefaultPathSegment(segment, separatorElement));
 			}
 			if (end == -1) {
 				break;
@@ -135,13 +136,13 @@ final class DefaultPathContainer implements PathContainer {
 		int index = segment.indexOf(';');
 		if (index == -1) {
 			String valueToMatch = StringUtils.uriDecode(segment, charset);
-			return DefaultPathSegment.from(segment, valueToMatch);
+			return new DefaultPathSegment(segment, valueToMatch, EMPTY_PARAMS);
 		}
 		else {
 			String valueToMatch = StringUtils.uriDecode(segment.substring(0, index), charset);
 			String pathParameterContent = segment.substring(index);
 			MultiValueMap<String, String> parameters = parsePathParams(pathParameterContent, charset);
-			return DefaultPathSegment.from(segment, valueToMatch, parameters);
+			return new DefaultPathSegment(segment, valueToMatch, parameters);
 		}
 	}
 
@@ -165,10 +166,10 @@ final class DefaultPathContainer implements PathContainer {
 			int index = input.indexOf('=');
 			if (index != -1) {
 				String name = input.substring(0, index);
-				name = StringUtils.uriDecode(name, charset);
-				if (StringUtils.hasText(name)) {
-					String value = input.substring(index + 1);
-					for (String v : StringUtils.commaDelimitedListToStringArray(value)) {
+				String value = input.substring(index + 1);
+				for (String v : StringUtils.commaDelimitedListToStringArray(value)) {
+					name = StringUtils.uriDecode(name, charset);
+					if (StringUtils.hasText(name)) {
 						output.add(name, StringUtils.uriDecode(v, charset));
 					}
 				}
@@ -225,44 +226,36 @@ final class DefaultPathContainer implements PathContainer {
 	}
 
 
-	private static final class DefaultPathSegment implements PathSegment {
-
-		private static final MultiValueMap<String, String> EMPTY_PARAMS =
-				CollectionUtils.unmodifiableMultiValueMap(new LinkedMultiValueMap<>());
+	private static class DefaultPathSegment implements PathSegment {
 
 		private final String value;
 
 		private final String valueToMatch;
 
+		private final char[] valueToMatchAsChars;
+
 		private final MultiValueMap<String, String> parameters;
 
-		/**
-		 * Factory for segments without decoding and parsing.
-		 */
-		static DefaultPathSegment from(String value, DefaultSeparator separator) {
-			String valueToMatch = value.contains(separator.encodedSequence()) ?
-					value.replaceAll(separator.encodedSequence(), separator.value()) : value;
-			return from(value, valueToMatch);
-		}
 
 		/**
-		 * Factory for decoded and parsed segments.
+		 * Constructor for decoded and parsed segments.
 		 */
-		static DefaultPathSegment from(String value, String valueToMatch) {
-			return new DefaultPathSegment(value, valueToMatch, EMPTY_PARAMS);
-		}
-
-		/**
-		 * Factory for decoded and parsed segments.
-		 */
-		static DefaultPathSegment from(String value, String valueToMatch, MultiValueMap<String, String> params) {
-			return new DefaultPathSegment(value, valueToMatch, CollectionUtils.unmodifiableMultiValueMap(params));
-		}
-
-		private DefaultPathSegment(String value, String valueToMatch, MultiValueMap<String, String> params) {
+		DefaultPathSegment(String value, String valueToMatch, MultiValueMap<String, String> params) {
 			this.value = value;
 			this.valueToMatch = valueToMatch;
-			this.parameters = params;
+			this.valueToMatchAsChars = valueToMatch.toCharArray();
+			this.parameters = CollectionUtils.unmodifiableMultiValueMap(params);
+		}
+
+		/**
+		 * Constructor for segments without decoding and parsing.
+		 */
+		DefaultPathSegment(String value, DefaultSeparator separator) {
+			this.value = value;
+			this.valueToMatch = value.contains(separator.encodedSequence()) ?
+					value.replaceAll(separator.encodedSequence(), separator.value()) : value;
+			this.valueToMatchAsChars = this.valueToMatch.toCharArray();
+			this.parameters = EMPTY_PARAMS;
 		}
 
 
@@ -278,7 +271,7 @@ final class DefaultPathContainer implements PathContainer {
 
 		@Override
 		public char[] valueToMatchAsChars() {
-			return this.valueToMatch.toCharArray();
+			return this.valueToMatchAsChars;
 		}
 
 		@Override

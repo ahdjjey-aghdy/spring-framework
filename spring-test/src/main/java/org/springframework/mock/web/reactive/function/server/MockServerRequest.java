@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,9 +41,11 @@ import org.springframework.http.HttpRange;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.codec.multipart.Part;
+import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.RequestPath;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.Nullable;
+import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
@@ -61,14 +63,18 @@ import org.springframework.web.util.UriComponentsBuilder;
  *
  * @author Arjen Poutsma
  * @since 5.0
+ * @deprecated as of 5.2.5 in favor of
+ * {@link ServerRequest#create(ServerWebExchange, List)} combined with
+ * {@link MockServerWebExchange}.
  */
+@Deprecated
 public final class MockServerRequest implements ServerRequest {
 
 	private final HttpMethod method;
 
 	private final URI uri;
 
-	private final RequestPath requestPath;
+	private final RequestPath pathContainer;
 
 	private final MockHeaders headers;
 
@@ -87,7 +93,7 @@ public final class MockServerRequest implements ServerRequest {
 	private final WebSession session;
 
 	@Nullable
-	private final Principal principal;
+	private Principal principal;
 
 	@Nullable
 	private final InetSocketAddress remoteAddress;
@@ -110,7 +116,7 @@ public final class MockServerRequest implements ServerRequest {
 
 		this.method = method;
 		this.uri = uri;
-		this.requestPath = RequestPath.parse(uri, contextPath);
+		this.pathContainer = RequestPath.parse(uri, contextPath);
 		this.headers = headers;
 		this.cookies = cookies;
 		this.body = body;
@@ -132,7 +138,6 @@ public final class MockServerRequest implements ServerRequest {
 	}
 
 	@Override
-	@Deprecated
 	public String methodName() {
 		return this.method.name();
 	}
@@ -148,8 +153,8 @@ public final class MockServerRequest implements ServerRequest {
 	}
 
 	@Override
-	public RequestPath requestPath() {
-		return this.requestPath;
+	public PathContainer pathContainer() {
+		return this.pathContainer;
 	}
 
 	@Override
@@ -300,6 +305,13 @@ public final class MockServerRequest implements ServerRequest {
 		Builder pathVariables(Map<String, String> pathVariables);
 
 		Builder session(WebSession session);
+
+		/**
+		 * Sets the request {@link Principal}.
+		 * @deprecated in favor of {@link #principal(Principal)}
+		 */
+		@Deprecated
+		Builder session(Principal principal);
 
 		Builder principal(Principal principal);
 
@@ -455,6 +467,12 @@ public final class MockServerRequest implements ServerRequest {
 			Assert.notNull(session, "'session' must not be null");
 			this.session = session;
 			return this;
+		}
+
+		@Override
+		@Deprecated
+		public Builder session(Principal principal) {
+			return principal(principal);
 		}
 
 		@Override

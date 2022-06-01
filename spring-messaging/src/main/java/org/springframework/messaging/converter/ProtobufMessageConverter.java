@@ -120,9 +120,9 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 
 	@Override
 	protected boolean canConvertTo(Object payload, @Nullable MessageHeaders headers) {
-		MimeType contentType = getMimeType(headers);
+		MimeType mimeType = getMimeType(headers);
 		return (super.canConvertTo(payload, headers) ||
-				this.protobufFormatSupport != null && this.protobufFormatSupport.supportsWriteOnly(contentType));
+				this.protobufFormatSupport != null && this.protobufFormatSupport.supportsWriteOnly(mimeType));
 	}
 
 	@Override
@@ -183,7 +183,7 @@ public class ProtobufMessageConverter extends AbstractMessageConverter {
 			else if (this.protobufFormatSupport != null) {
 				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 				this.protobufFormatSupport.print(message, outputStream, contentType, charset);
-				payload = outputStream.toString(charset);
+				payload = outputStream.toString(charset.name());
 			}
 		}
 		catch (IOException ex) {

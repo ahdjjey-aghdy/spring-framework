@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,11 +66,12 @@ public abstract class StatementCreatorUtils {
 	 * completely, i.e. to never even attempt to retrieve {@link PreparedStatement#getParameterMetaData()}
 	 * for {@link StatementCreatorUtils#setNull} calls.
 	 * <p>The default is "false", trying {@code getParameterType} calls first and falling back to
-	 * {@link PreparedStatement#setNull} / {@link PreparedStatement#setObject} calls based on
-	 * well-known behavior of common databases.
-	 * <p>Consider switching this flag to "true" if you experience misbehavior at runtime,
-	 * e.g. with connection pool issues in case of an exception thrown from {@code getParameterType}
-	 * (as reported on JBoss AS 7) or in case of performance problems (as reported on PostgreSQL).
+	 * {@link PreparedStatement#setNull} / {@link PreparedStatement#setObject} calls based on well-known
+	 * behavior of common databases. Spring records JDBC drivers with non-working {@code getParameterType}
+	 * implementations and won't attempt to call that method for that driver again, always falling back.
+	 * <p>Consider switching this flag to "true" if you experience misbehavior at runtime, e.g. with
+	 * a connection pool setting back the {@link PreparedStatement} instance in case of an exception
+	 * thrown from {@code getParameterType} (as reported on JBoss AS 7).
 	 */
 	public static final String IGNORE_GETPARAMETERTYPE_PROPERTY_NAME = "spring.jdbc.getParameterType.ignore";
 
@@ -202,7 +203,8 @@ public abstract class StatementCreatorUtils {
 		Object inValueToUse = inValue;
 
 		// override type info?
-		if (inValue instanceof SqlParameterValue parameterValue) {
+		if (inValue instanceof SqlParameterValue) {
+			SqlParameterValue parameterValue = (SqlParameterValue) inValue;
 			if (logger.isDebugEnabled()) {
 				logger.debug("Overriding type info with runtime info from SqlParameterValue: column index " + paramIndex +
 						", SQL type " + parameterValue.getSqlType() + ", type name " + parameterValue.getTypeName());
@@ -264,7 +266,7 @@ public abstract class StatementCreatorUtils {
 				}
 				else if (databaseProductName.startsWith("DB2") ||
 						jdbcDriverName.startsWith("jConnect") ||
-						jdbcDriverName.startsWith("SQLServer") ||
+						jdbcDriverName.startsWith("SQLServer")||
 						jdbcDriverName.startsWith("Apache Derby")) {
 					sqlTypeToUse = Types.VARCHAR;
 				}
@@ -310,6 +312,7 @@ public abstract class StatementCreatorUtils {
 				else {
 					ps.setClob(paramIndex, new StringReader(strVal), strVal.length());
 				}
+				return;
 			}
 			else {
 				// Fallback: setString or setNString binding
@@ -349,7 +352,8 @@ public abstract class StatementCreatorUtils {
 					ps.setDate(paramIndex, new java.sql.Date(((java.util.Date) inValue).getTime()));
 				}
 			}
-			else if (inValue instanceof Calendar cal) {
+			else if (inValue instanceof Calendar) {
+				Calendar cal = (Calendar) inValue;
 				ps.setDate(paramIndex, new java.sql.Date(cal.getTime().getTime()), cal);
 			}
 			else {
@@ -365,7 +369,8 @@ public abstract class StatementCreatorUtils {
 					ps.setTime(paramIndex, new java.sql.Time(((java.util.Date) inValue).getTime()));
 				}
 			}
-			else if (inValue instanceof Calendar cal) {
+			else if (inValue instanceof Calendar) {
+				Calendar cal = (Calendar) inValue;
 				ps.setTime(paramIndex, new java.sql.Time(cal.getTime().getTime()), cal);
 			}
 			else {
@@ -381,7 +386,8 @@ public abstract class StatementCreatorUtils {
 					ps.setTimestamp(paramIndex, new java.sql.Timestamp(((java.util.Date) inValue).getTime()));
 				}
 			}
-			else if (inValue instanceof Calendar cal) {
+			else if (inValue instanceof Calendar) {
+				Calendar cal = (Calendar) inValue;
 				ps.setTimestamp(paramIndex, new java.sql.Timestamp(cal.getTime().getTime()), cal);
 			}
 			else {
@@ -396,7 +402,8 @@ public abstract class StatementCreatorUtils {
 			else if (isDateValue(inValue.getClass())) {
 				ps.setTimestamp(paramIndex, new java.sql.Timestamp(((java.util.Date) inValue).getTime()));
 			}
-			else if (inValue instanceof Calendar cal) {
+			else if (inValue instanceof Calendar) {
+				Calendar cal = (Calendar) inValue;
 				ps.setTimestamp(paramIndex, new java.sql.Timestamp(cal.getTime().getTime()), cal);
 			}
 			else {
@@ -453,16 +460,11 @@ public abstract class StatementCreatorUtils {
 	public static void cleanupParameters(@Nullable Collection<?> paramValues) {
 		if (paramValues != null) {
 			for (Object inValue : paramValues) {
-				// Unwrap SqlParameterValue first...
-				if (inValue instanceof SqlParameterValue) {
-					inValue = ((SqlParameterValue) inValue).getValue();
-				}
-				// Check for disposable value types
-				if (inValue instanceof SqlValue) {
-					((SqlValue) inValue).cleanup();
-				}
-				else if (inValue instanceof DisposableSqlTypeValue) {
+				if (inValue instanceof DisposableSqlTypeValue) {
 					((DisposableSqlTypeValue) inValue).cleanup();
+				}
+				else if (inValue instanceof SqlValue) {
+					((SqlValue) inValue).cleanup();
 				}
 			}
 		}

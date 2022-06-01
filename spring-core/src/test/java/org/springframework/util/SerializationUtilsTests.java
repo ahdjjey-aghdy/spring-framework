@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,43 +38,33 @@ class SerializationUtilsTests {
 
 
 	@Test
-	@SuppressWarnings("deprecation")
-	void serializeCycleSunnyDay() {
+	void serializeCycleSunnyDay() throws Exception {
 		assertThat(SerializationUtils.deserialize(SerializationUtils.serialize("foo"))).isEqualTo("foo");
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	void deserializeUndefined() {
+	void deserializeUndefined() throws Exception {
 		assertThatIllegalStateException().isThrownBy(() -> SerializationUtils.deserialize(FOO.toByteArray()));
 	}
 
 	@Test
-	void serializeNonSerializable() {
+	void serializeNonSerializable() throws Exception {
 		assertThatIllegalArgumentException().isThrownBy(() -> SerializationUtils.serialize(new Object()));
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	void deserializeNonSerializable() {
+	void deserializeNonSerializable() throws Exception {
 		assertThatIllegalArgumentException().isThrownBy(() -> SerializationUtils.deserialize("foo".getBytes()));
 	}
 
 	@Test
-	void serializeNull() {
+	void serializeNull() throws Exception {
 		assertThat(SerializationUtils.serialize(null)).isNull();
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	void deserializeNull() {
+	void deserializeNull() throws Exception {
 		assertThat(SerializationUtils.deserialize(null)).isNull();
-	}
-
-	@Test
-	void cloneException() {
-		IllegalArgumentException ex = new IllegalArgumentException("foo");
-		assertThat(SerializationUtils.clone(ex)).hasMessage("foo").isNotSameAs(ex);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2004-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,29 +30,25 @@ import static org.hamcrest.core.Is.is;
  */
 class JsonPathExpectationsHelperTests {
 
-	private static final String CONTENT = """
-			{
-				'str':         'foo',
-				'num':         5,
-				'bool':        true,
-				'arr':         [42],
-				'colorMap':    {'red': 'rojo'},
-				'whitespace':  '    ',
-				'emptyString': '',
-				'emptyArray':  [],
-				'emptyMap':    {}
-			}""";
+	private static final String CONTENT = "{" + //
+			"'str':         'foo',           " + //
+			"'num':         5,               " + //
+			"'bool':        true,            " + //
+			"'arr':         [42],            " + //
+			"'colorMap':    {'red': 'rojo'}, " + //
+			"'whitespace':  '    ',          " + //
+			"'emptyString': '',              " + //
+			"'emptyArray':  [],              " + //
+			"'emptyMap':    {}               " + //
+	"}";
 
-	private static final String SIMPSONS = """
-			{
-				'familyMembers': [
-					{'name': 'Homer' },
-					{'name': 'Marge' },
-					{'name': 'Bart'  },
-					{'name': 'Lisa'  },
-					{'name': 'Maggie'}
-				]
-			}""";
+	private static final String SIMPSONS = "{ 'familyMembers': [ " + //
+			"{'name': 'Homer' }, " + //
+			"{'name': 'Marge' }, " + //
+			"{'name': 'Bart'  }, " + //
+			"{'name': 'Lisa'  }, " + //
+			"{'name': 'Maggie'}  " + //
+	" ] }";
 
 
 	@Test
@@ -71,12 +67,12 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void existsForIndefinitePathWithResults() throws Exception {
+	void existsForIndefinatePathWithResults() throws Exception {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Bart')]").exists(SIMPSONS);
 	}
 
 	@Test
-	void existsForIndefinitePathWithEmptyResults() throws Exception {
+	void existsForIndefinatePathWithEmptyResults() throws Exception {
 		String expression = "$.familyMembers[?(@.name == 'Dilbert')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).exists(SIMPSONS))
@@ -105,7 +101,7 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void doesNotExistForIndefinitePathWithResults() throws Exception {
+	void doesNotExistForIndefinatePathWithResults() throws Exception {
 		String expression = "$.familyMembers[?(@.name == 'Bart')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).doesNotExist(SIMPSONS))
@@ -113,7 +109,7 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void doesNotExistForIndefinitePathWithEmptyResults() throws Exception {
+	void doesNotExistForIndefinatePathWithEmptyResults() throws Exception {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Dilbert')]").doesNotExist(SIMPSONS);
 	}
 
@@ -133,12 +129,12 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void assertValueIsEmptyForIndefinitePathWithEmptyResults() throws Exception {
+	void assertValueIsEmptyForIndefinatePathWithEmptyResults() throws Exception {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Dilbert')]").assertValueIsEmpty(SIMPSONS);
 	}
 
 	@Test
-	void assertValueIsEmptyForIndefinitePathWithResults() throws Exception {
+	void assertValueIsEmptyForIndefinatePathWithResults() throws Exception {
 		String expression = "$.familyMembers[?(@.name == 'Bart')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).assertValueIsEmpty(SIMPSONS))
@@ -179,12 +175,12 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void assertValueIsNotEmptyForIndefinitePathWithResults() throws Exception {
+	void assertValueIsNotEmptyForIndefinatePathWithResults() throws Exception {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Bart')]").assertValueIsNotEmpty(SIMPSONS);
 	}
 
 	@Test
-	void assertValueIsNotEmptyForIndefinitePathWithEmptyResults() throws Exception {
+	void assertValueIsNotEmptyForIndefinatePathWithEmptyResults() throws Exception {
 		String expression = "$.familyMembers[?(@.name == 'Dilbert')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).assertValueIsNotEmpty(SIMPSONS))
@@ -226,12 +222,12 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void hasJsonPathForIndefinitePathWithResults() {
+	void hasJsonPathForIndefinatePathWithResults() {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Bart')]").hasJsonPath(SIMPSONS);
 	}
 
 	@Test
-	void hasJsonPathForIndefinitePathWithEmptyResults() {
+	void hasJsonPathForIndefinatePathWithEmptyResults() {
 		String expression = "$.familyMembers[?(@.name == 'Dilbert')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).hasJsonPath(SIMPSONS))
@@ -250,12 +246,12 @@ class JsonPathExpectationsHelperTests {
 	}
 
 	@Test
-	void doesNotHaveJsonPathForIndefinitePathWithEmptyResults() {
+	void doesNotHaveJsonPathForIndefinatePathWithEmptyResults() {
 		new JsonPathExpectationsHelper("$.familyMembers[?(@.name == 'Dilbert')]").doesNotHaveJsonPath(SIMPSONS);
 	}
 
 	@Test
-	void doesNotHaveEmptyPathForIndefinitePathWithResults() {
+	void doesNotHaveEmptyPathForIndefinatePathWithResults() {
 		String expression = "$.familyMembers[?(@.name == 'Bart')]";
 		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
 				new JsonPathExpectationsHelper(expression).doesNotHaveJsonPath(SIMPSONS))

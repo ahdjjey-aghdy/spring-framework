@@ -171,15 +171,15 @@ public abstract class FileCopyUtils {
 		Assert.notNull(out, "No Writer specified");
 
 		try {
-			int charCount = 0;
+			int byteCount = 0;
 			char[] buffer = new char[BUFFER_SIZE];
-			int charsRead;
-			while ((charsRead = in.read(buffer)) != -1) {
-				out.write(buffer, 0, charsRead);
-				charCount += charsRead;
+			int bytesRead = -1;
+			while ((bytesRead = in.read(buffer)) != -1) {
+				out.write(buffer, 0, bytesRead);
+				byteCount += bytesRead;
 			}
 			out.flush();
-			return charCount;
+			return byteCount;
 		}
 		finally {
 			close(in);
@@ -188,7 +188,7 @@ public abstract class FileCopyUtils {
 	}
 
 	/**
-	 * Copy the contents of the given String to the given Writer.
+	 * Copy the contents of the given String to the given output Writer.
 	 * Closes the writer when done.
 	 * @param in the String to copy from
 	 * @param out the Writer to copy to
@@ -218,7 +218,7 @@ public abstract class FileCopyUtils {
 			return "";
 		}
 
-		StringWriter out = new StringWriter(BUFFER_SIZE);
+		StringWriter out = new StringWriter();
 		copy(in, out);
 		return out.toString();
 	}

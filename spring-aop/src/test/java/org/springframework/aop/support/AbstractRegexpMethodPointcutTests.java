@@ -16,13 +16,12 @@
 
 package org.springframework.aop.support;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.testfixture.beans.TestBean;
 import org.springframework.core.testfixture.io.SerializationTestUtils;
+
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +48,7 @@ public abstract class AbstractRegexpMethodPointcutTests {
 
 	@Test
 	public void testSerializationWithNoPatternSupplied() throws Exception {
-		rpc = SerializationTestUtils.serializeAndDeserialize(rpc);
+		rpc = (AbstractRegexpMethodPointcut) SerializationTestUtils.serializeAndDeserialize(rpc);
 		noPatternSuppliedTests(rpc);
 	}
 
@@ -63,7 +62,7 @@ public abstract class AbstractRegexpMethodPointcutTests {
 	public void testExactMatch() throws Exception {
 		rpc.setPattern("java.lang.Object.hashCode");
 		exactMatchTests(rpc);
-		rpc = SerializationTestUtils.serializeAndDeserialize(rpc);
+		rpc = (AbstractRegexpMethodPointcut) SerializationTestUtils.serializeAndDeserialize(rpc);
 		exactMatchTests(rpc);
 	}
 

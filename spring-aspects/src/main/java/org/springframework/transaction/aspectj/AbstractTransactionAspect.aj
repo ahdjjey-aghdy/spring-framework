@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.springframework.transaction.aspectj;
 
 import org.aspectj.lang.annotation.SuppressAjWarnings;
 import org.aspectj.lang.reflect.MethodSignature;
-
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.transaction.interceptor.TransactionAttributeSource;
@@ -59,8 +58,7 @@ public abstract aspect AbstractTransactionAspect extends TransactionAspectSuppor
 
 	@Override
 	public void destroy() {
-		// An aspect is basically a singleton -> cleanup on destruction
-		clearTransactionManagerCache();
+		clearTransactionManagerCache(); // An aspect is basically a singleton
 	}
 
 	@SuppressAjWarnings("adviceDidNotMatch")

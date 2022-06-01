@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,9 @@
 
 package org.springframework.cache.aspectj;
 
-import java.util.Collection;
-import java.util.UUID;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.cache.Cache;
@@ -33,9 +29,10 @@ import org.springframework.cache.config.TestEntity;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.testfixture.cache.SomeCustomKeyGenerator;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatIOException;
+import java.util.Collection;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Copy of the shared {@code AbstractCacheAnnotationTests}: necessary
@@ -412,15 +409,15 @@ public abstract class AbstractCacheAnnotationTests {
 	}
 
 	protected void testConditionalCacheUpdate(CacheableService<?> service) {
-		int one = 1;
-		int three = 3;
+		Integer one = 1;
+		Integer three = 3;
 
 		Cache cache = this.cm.getCache("testCache");
-		assertThat(Integer.parseInt(service.conditionalUpdate(one).toString())).isEqualTo(one);
+		assertThat((int) Integer.valueOf(service.conditionalUpdate(one).toString())).isEqualTo((int) one);
 		assertThat(cache.get(one)).isNull();
 
-		assertThat(Integer.parseInt(service.conditionalUpdate(three).toString())).isEqualTo(three);
-		assertThat(Integer.parseInt(cache.get(three).get().toString())).isEqualTo(three);
+		assertThat((int) Integer.valueOf(service.conditionalUpdate(three).toString())).isEqualTo((int) three);
+		assertThat((int) Integer.valueOf(cache.get(three).get().toString())).isEqualTo((int) three);
 	}
 
 	protected void testMultiCache(CacheableService<?> service) {

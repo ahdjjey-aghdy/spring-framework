@@ -16,7 +16,8 @@
 
 package org.springframework.web.servlet.tags.form;
 
-import jakarta.servlet.jsp.tagext.Tag;
+import javax.servlet.jsp.tagext.Tag;
+
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.testfixture.beans.TestBean;
@@ -135,7 +136,7 @@ public class TextareaTagTests extends AbstractFormTagTests {
 		// set up test data
 		this.rob = new TestBean();
 		rob.setName("Rob");
-		rob.setMyFloat(12.34f);
+		rob.setMyFloat(new Float(12.34));
 
 		TestBean sally = new TestBean();
 		sally.setName("Sally");

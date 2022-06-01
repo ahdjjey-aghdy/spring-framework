@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2012 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,16 @@
 
 package org.springframework.aop.framework.adapter;
 
-import java.io.Serializable;
-
 import org.aopalliance.aop.Advice;
 import org.aopalliance.intercept.MethodInterceptor;
-
 import org.springframework.aop.Advisor;
 import org.springframework.aop.ThrowsAdvice;
 
+import java.io.Serializable;
+
 /**
- * Adapter to enable {@link org.springframework.aop.ThrowsAdvice} to be used
- * in the Spring AOP framework.
+ * Adapter to enable {@link org.springframework.aop.MethodBeforeAdvice}
+ * to be used in the Spring AOP framework.
  *
  * @author Rod Johnson
  * @author Juergen Hoeller

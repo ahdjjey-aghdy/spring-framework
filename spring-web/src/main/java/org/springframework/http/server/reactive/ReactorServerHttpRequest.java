@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.ssl.SSLSession;
 
-import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.ssl.SslHandler;
-import org.apache.commons.logging.Log;
 import reactor.core.publisher.Flux;
 import reactor.netty.Connection;
 import reactor.netty.http.server.HttpServerRequest;
@@ -35,11 +33,9 @@ import reactor.netty.http.server.HttpServerRequest;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
 import org.springframework.http.HttpCookie;
-import org.springframework.http.HttpLogging;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -52,14 +48,7 @@ import org.springframework.util.MultiValueMap;
  */
 class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 
-	/** Reactor Netty 1.0.5+. */
-	static final boolean reactorNettyRequestChannelOperationsIdPresent = ClassUtils.isPresent(
-			"reactor.netty.ChannelOperationsId", ReactorServerHttpRequest.class.getClassLoader());
-
-	private static final Log logger = HttpLogging.forLogName(ReactorServerHttpRequest.class);
-
-
-	private static final AtomicLong logPrefixIndex = new AtomicLong();
+	private static final AtomicLong logPrefixIndex = new AtomicLong(0);
 
 
 	private final HttpServerRequest request;
@@ -70,7 +59,7 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 	public ReactorServerHttpRequest(HttpServerRequest request, NettyDataBufferFactory bufferFactory)
 			throws URISyntaxException {
 
-		super(initUri(request), "", new NettyHeadersAdapter(request.requestHeaders()));
+		super(initUri(request), "", initHeaders(request));
 		Assert.notNull(bufferFactory, "DataBufferFactory must not be null");
 		this.request = request;
 		this.bufferFactory = bufferFactory;
@@ -78,7 +67,7 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 
 	private static URI initUri(HttpServerRequest request) throws URISyntaxException {
 		Assert.notNull(request, "HttpServerRequest must not be null");
-		return new URI(resolveBaseUrl(request) + resolveRequestUri(request));
+		return new URI(resolveBaseUrl(request).toString() + resolveRequestUri(request));
 	}
 
 	private static URI resolveBaseUrl(HttpServerRequest request) throws URISyntaxException {
@@ -95,7 +84,7 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 			if (portIndex != -1) {
 				try {
 					return new URI(scheme, null, header.substring(0, portIndex),
-							Integer.parseInt(header, portIndex + 1, header.length(), 10), null, null, null);
+							Integer.parseInt(header.substring(portIndex + 1)), null, null, null);
 				}
 				catch (NumberFormatException ex) {
 					throw new URISyntaxException(header, "Unable to parse port", portIndex);
@@ -107,7 +96,6 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 		}
 		else {
 			InetSocketAddress localAddress = request.hostAddress();
-			Assert.state(localAddress != null, "No host address available");
 			return new URI(scheme, null, localAddress.getHostString(),
 					localAddress.getPort(), null, null, null);
 		}
@@ -139,13 +127,13 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 		return uri;
 	}
 
-	@Override
-	public HttpMethod getMethod() {
-		return HttpMethod.valueOf(this.request.method().name());
+	private static HttpHeaders initHeaders(HttpServerRequest channel) {
+		NettyHeadersAdapter headersMap = new NettyHeadersAdapter(channel.requestHeaders());
+		return new HttpHeaders(headersMap);
 	}
 
+
 	@Override
-	@Deprecated
 	public String getMethodValue() {
 		return this.request.method().name();
 	}
@@ -163,25 +151,19 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 	}
 
 	@Override
-	@Nullable
+	public InetSocketAddress getRemoteAddress() {
+		return this.request.remoteAddress();
+	}
+
+	@Override
 	public InetSocketAddress getLocalAddress() {
 		return this.request.hostAddress();
 	}
 
 	@Override
 	@Nullable
-	public InetSocketAddress getRemoteAddress() {
-		return this.request.remoteAddress();
-	}
-
-	@Override
-	@Nullable
 	protected SslInfo initSslInfo() {
-		Channel channel = ((Connection) this.request).channel();
-		SslHandler sslHandler = channel.pipeline().get(SslHandler.class);
-		if (sslHandler == null && channel.parent() != null) { // HTTP/2
-			sslHandler = channel.parent().pipeline().get(SslHandler.class);
-		}
+		SslHandler sslHandler = ((Connection) this.request).channel().pipeline().get(SslHandler.class);
 		if (sslHandler != null) {
 			SSLSession session = sslHandler.engine().getSession();
 			return new DefaultSslInfo(session);
@@ -208,35 +190,6 @@ class ReactorServerHttpRequest extends AbstractServerHttpRequest {
 					"-" + logPrefixIndex.incrementAndGet();
 		}
 		return null;
-	}
-
-	@Override
-	protected String initLogPrefix() {
-		if (reactorNettyRequestChannelOperationsIdPresent) {
-			String id = (ChannelOperationsIdHelper.getId(this.request));
-			if (id != null) {
-				return id;
-			}
-		}
-		if (this.request instanceof Connection) {
-			return ((Connection) this.request).channel().id().asShortText() +
-					"-" + logPrefixIndex.incrementAndGet();
-		}
-		return getId();
-	}
-
-
-	private static class ChannelOperationsIdHelper {
-
-		@Nullable
-		public static String getId(HttpServerRequest request) {
-			if (request instanceof reactor.netty.ChannelOperationsId) {
-				return (logger.isDebugEnabled() ?
-						((reactor.netty.ChannelOperationsId) request).asLongText() :
-						((reactor.netty.ChannelOperationsId) request).asShortText());
-			}
-			return null;
-		}
 	}
 
 }

@@ -19,7 +19,8 @@ package org.springframework.web.context.request.async;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
-import jakarta.servlet.AsyncEvent;
+import javax.servlet.AsyncEvent;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -96,7 +97,12 @@ public class WebAsyncManagerTimeoutTests {
 
 		StubCallable callable = new StubCallable();
 		WebAsyncTask<Object> webAsyncTask = new WebAsyncTask<>(callable);
-		webAsyncTask.onTimeout(() -> 7);
+		webAsyncTask.onTimeout(new Callable<Object>() {
+			@Override
+			public Object call() throws Exception {
+				return 7;
+			}
+		});
 
 		this.asyncManager.startCallableProcessing(webAsyncTask);
 

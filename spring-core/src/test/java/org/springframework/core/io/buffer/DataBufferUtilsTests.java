@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -36,15 +35,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import reactor.util.context.Context;
 
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
@@ -76,17 +72,17 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 
 
 	@ParameterizedDataBufferAllocatingTest
-	void readInputStream(DataBufferFactory bufferFactory) {
+	void readInputStream(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.readInputStream(
-				this.resource::getInputStream, super.bufferFactory, 3);
+				() -> this.resource.getInputStream(), super.bufferFactory, 3);
 
 		verifyReadData(flux);
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readByteChannel(DataBufferFactory bufferFactory) throws Exception {
+	void readByteChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -98,7 +94,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readByteChannelError(DataBufferFactory bufferFactory) throws Exception {
+	void readByteChannelError(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		ReadableByteChannel channel = mock(ReadableByteChannel.class);
@@ -121,7 +117,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readByteChannelCancel(DataBufferFactory bufferFactory) throws Exception {
+	void readByteChannelCancel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -136,7 +132,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAsynchronousFileChannel(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -148,7 +144,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAsynchronousFileChannelPosition(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannelPosition(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -163,7 +159,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAsynchronousFileChannelError(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannelError(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		AsynchronousFileChannel channel = mock(AsynchronousFileChannel.class);
@@ -195,7 +191,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAsynchronousFileChannelCancel(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannelCancel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -210,7 +206,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest // gh-22107
-	void readAsynchronousFileChannelCancelWithoutDemand(DataBufferFactory bufferFactory) throws Exception {
+	void readAsynchronousFileChannelCancelWithoutDemand(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		URI uri = this.resource.getURI();
@@ -224,7 +220,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readPath(DataBufferFactory bufferFactory) throws Exception {
+	void readPath(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.read(this.resource.getFile().toPath(), super.bufferFactory, 3);
@@ -233,7 +229,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResource(DataBufferFactory bufferFactory) throws Exception {
+	void readResource(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.read(this.resource, super.bufferFactory, 3);
@@ -242,7 +238,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResourcePosition(DataBufferFactory bufferFactory) throws Exception {
+	void readResourcePosition(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> flux = DataBufferUtils.read(this.resource, 9, super.bufferFactory, 3);
@@ -264,7 +260,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) throws Exception {
+	void readResourcePositionAndTakeUntil(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Resource resource = new ClassPathResource("DataBufferUtilsTests.txt", getClass());
@@ -281,7 +277,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readByteArrayResourcePositionAndTakeUntil(DataBufferFactory bufferFactory) throws Exception {
+	void readByteArrayResourcePositionAndTakeUntil(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Resource resource = new ByteArrayResource("foobarbazqux" .getBytes());
@@ -298,7 +294,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeOutputStream(DataBufferFactory bufferFactory) throws Exception {
+	void writeOutputStream(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -315,7 +311,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeWritableByteChannel(DataBufferFactory bufferFactory) throws Exception {
+	void writeWritableByteChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -332,7 +328,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeWritableByteChannelErrorInFlux(DataBufferFactory bufferFactory) throws Exception {
+	void writeWritableByteChannelErrorInFlux(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -355,7 +351,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeWritableByteChannelErrorInWrite(DataBufferFactory bufferFactory) throws Exception {
+	void writeWritableByteChannelErrorInWrite(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -383,7 +379,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeWritableByteChannelCancel(DataBufferFactory bufferFactory) throws Exception {
+	void writeWritableByteChannelCancel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -407,7 +403,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeAsynchronousFileChannel(DataBufferFactory bufferFactory) throws Exception {
+	void writeAsynchronousFileChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -439,7 +435,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeAsynchronousFileChannelErrorInFlux(DataBufferFactory bufferFactory) throws Exception {
+	void writeAsynchronousFileChannelErrorInFlux(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -465,7 +461,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 
 	@ParameterizedDataBufferAllocatingTest
 	@SuppressWarnings("unchecked")
-	void writeAsynchronousFileChannelErrorInWrite(DataBufferFactory bufferFactory) throws Exception {
+	void writeAsynchronousFileChannelErrorInWrite(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -506,7 +502,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writeAsynchronousFileChannelCanceled(DataBufferFactory bufferFactory) throws Exception {
+	void writeAsynchronousFileChannelCanceled(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -531,7 +527,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void writePath(DataBufferFactory bufferFactory) throws Exception {
+	void writePath(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -548,7 +544,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAndWriteByteChannel(DataBufferFactory bufferFactory) throws Exception {
+	void readAndWriteByteChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Path source = Paths.get(
@@ -582,7 +578,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void readAndWriteAsynchronousFileChannel(DataBufferFactory bufferFactory) throws Exception {
+	void readAndWriteAsynchronousFileChannel(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		Path source = Paths.get(
@@ -623,7 +619,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void takeUntilByteCount(DataBufferFactory bufferFactory) {
+	void takeUntilByteCount(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> result = DataBufferUtils.takeUntilByteCount(
@@ -637,7 +633,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void takeUntilByteCountCanceled(DataBufferFactory bufferFactory) {
+	void takeUntilByteCountCanceled(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -654,7 +650,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void takeUntilByteCountError(DataBufferFactory bufferFactory) {
+	void takeUntilByteCountError(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -671,7 +667,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void takeUntilByteCountExact(DataBufferFactory bufferFactory) {
+	void takeUntilByteCountExact(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -690,7 +686,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void skipUntilByteCount(DataBufferFactory bufferFactory) {
+	void skipUntilByteCount(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -708,7 +704,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void skipUntilByteCountCancelled(DataBufferFactory bufferFactory) {
+	void skipUntilByteCountCancelled(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -724,7 +720,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void skipUntilByteCountErrorInFlux(DataBufferFactory bufferFactory) {
+	void skipUntilByteCountErrorInFlux(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -738,7 +734,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void skipUntilByteCountShouldSkipAll(DataBufferFactory bufferFactory) {
+	void skipUntilByteCountShouldSkipAll(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -753,7 +749,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void releaseConsumer(DataBufferFactory bufferFactory) {
+	void releaseConsumer(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -769,14 +765,14 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	private static void assertReleased(DataBuffer dataBuffer) {
-		if (dataBuffer instanceof NettyDataBuffer nettyDataBuffer) {
-			ByteBuf byteBuf = nettyDataBuffer.getNativeBuffer();
+		if (dataBuffer instanceof NettyDataBuffer) {
+			ByteBuf byteBuf = ((NettyDataBuffer) dataBuffer).getNativeBuffer();
 			assertThat(byteBuf.refCnt()).isEqualTo(0);
 		}
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void SPR16070(DataBufferFactory bufferFactory) throws Exception {
+	void SPR16070(String displayName, DataBufferFactory bufferFactory) throws Exception {
 		super.bufferFactory = bufferFactory;
 
 		ReadableByteChannel channel = mock(ReadableByteChannel.class);
@@ -807,7 +803,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void join(DataBufferFactory bufferFactory) {
+	void join(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -825,7 +821,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void joinWithLimit(DataBufferFactory bufferFactory) {
+	void joinWithLimit(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -838,24 +834,8 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 				.verifyError(DataBufferLimitException.class);
 	}
 
-	@Test // gh-26060
-	void joinWithLimitDoesNotOverRelease() {
-		NettyDataBufferFactory bufferFactory = new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT);
-		byte[] bytes = "foo-bar-baz".getBytes(StandardCharsets.UTF_8);
-
-		NettyDataBuffer buffer = bufferFactory.allocateBuffer(bytes.length);
-		buffer.getNativeBuffer().retain(); // should be at 2 now
-		buffer.write(bytes);
-
-		Mono<DataBuffer> result = DataBufferUtils.join(Flux.just(buffer), 8);
-
-		StepVerifier.create(result).verifyError(DataBufferLimitException.class);
-		assertThat(buffer.getNativeBuffer().refCnt()).isEqualTo(1);
-		buffer.release();
-	}
-
 	@ParameterizedDataBufferAllocatingTest
-	void joinErrors(DataBufferFactory bufferFactory) {
+	void joinErrors(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -869,7 +849,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void joinCanceled(DataBufferFactory bufferFactory) {
+	void joinCanceled(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		Flux<DataBuffer> source = Flux.concat(
@@ -885,7 +865,7 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void matcher(DataBufferFactory bufferFactory) {
+	void matcher(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
 		DataBuffer foo = stringBuffer("foo");
@@ -903,92 +883,25 @@ class DataBufferUtilsTests extends AbstractDataBufferAllocatingTests {
 	}
 
 	@ParameterizedDataBufferAllocatingTest
-	void matcher2(DataBufferFactory bufferFactory) {
+	void matcher2(String displayName, DataBufferFactory bufferFactory) {
 		super.bufferFactory = bufferFactory;
 
-		DataBuffer foo = stringBuffer("foooobar");
+		DataBuffer foo = stringBuffer("fooobar");
 
 		byte[] delims = "oo".getBytes(StandardCharsets.UTF_8);
 		DataBufferUtils.Matcher matcher = DataBufferUtils.matcher(delims);
-		int endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(2);
-		foo.readPosition(endIndex + 1);
-		endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(4);
-		foo.readPosition(endIndex + 1);
-		endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(-1);
+		int result = matcher.match(foo);
+		assertThat(result).isEqualTo(2);
+		foo.readPosition(2);
+		result = matcher.match(foo);
+		assertThat(result).isEqualTo(3);
+		foo.readPosition(3);
+		result = matcher.match(foo);
+		assertThat(result).isEqualTo(-1);
 
 		release(foo);
 	}
 
-	@ParameterizedDataBufferAllocatingTest
-	void matcher3(DataBufferFactory bufferFactory) {
-		super.bufferFactory = bufferFactory;
-
-		DataBuffer foo = stringBuffer("foooobar");
-
-		byte[] delims = "oo".getBytes(StandardCharsets.UTF_8);
-		DataBufferUtils.Matcher matcher = DataBufferUtils.matcher(delims);
-		int endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(2);
-		foo.readPosition(endIndex + 1);
-		endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(4);
-		foo.readPosition(endIndex + 1);
-		endIndex = matcher.match(foo);
-		assertThat(endIndex).isEqualTo(-1);
-
-		release(foo);
-	}
-
-	@ParameterizedDataBufferAllocatingTest
-	void propagateContextByteChannel(DataBufferFactory bufferFactory) throws IOException {
-		Path path = Paths.get(this.resource.getURI());
-		try (SeekableByteChannel out = Files.newByteChannel(this.tempFile, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-			Flux<DataBuffer> result = DataBufferUtils.read(path, bufferFactory, 1024, StandardOpenOption.READ)
-					.transformDeferredContextual((f, ctx) -> {
-						assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
-						return f;
-					})
-					.transform(f -> DataBufferUtils.write(f, out))
-					.transformDeferredContextual((f, ctx) -> {
-						assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
-						return f;
-					})
-					.contextWrite(Context.of("key", "TEST"));
-
-			StepVerifier.create(result)
-					.consumeNextWith(DataBufferUtils::release)
-					.verifyComplete();
-
-
-		}
-	}
-
-	@ParameterizedDataBufferAllocatingTest
-	void propagateContextAsynchronousFileChannel(DataBufferFactory bufferFactory) throws IOException {
-		Path path = Paths.get(this.resource.getURI());
-		try (AsynchronousFileChannel out = AsynchronousFileChannel.open(this.tempFile, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-			Flux<DataBuffer> result = DataBufferUtils.read(path, bufferFactory, 1024, StandardOpenOption.READ)
-					.transformDeferredContextual((f, ctx) -> {
-						assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
-						return f;
-					})
-					.transform(f -> DataBufferUtils.write(f, out))
-					.transformDeferredContextual((f, ctx) -> {
-						assertThat(ctx.getOrDefault("key", "EMPTY")).isEqualTo("TEST");
-						return f;
-					})
-					.contextWrite(Context.of("key", "TEST"));
-
-			StepVerifier.create(result)
-					.consumeNextWith(DataBufferUtils::release)
-					.verifyComplete();
-
-
-		}
-	}
 
 	private static class ZeroDemandSubscriber extends BaseSubscriber<DataBuffer> {
 

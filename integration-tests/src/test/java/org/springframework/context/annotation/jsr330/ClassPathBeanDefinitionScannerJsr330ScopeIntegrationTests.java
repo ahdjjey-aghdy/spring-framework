@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,29 @@
 
 package org.springframework.context.annotation.jsr330;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ScopeMetadata;
+import org.springframework.context.annotation.ScopeMetadataResolver;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.context.support.GenericWebApplicationContext;
+
+import javax.inject.Named;
+import javax.inject.Singleton;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -305,25 +305,29 @@ class ClassPathBeanDefinitionScannerJsr330ScopeIntegrationTests {
 		GenericWebApplicationContext context = new GenericWebApplicationContext();
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(context);
 		scanner.setIncludeAnnotationConfig(false);
-		scanner.setScopeMetadataResolver(definition -> {
-			ScopeMetadata metadata = new ScopeMetadata();
-			if (definition instanceof AnnotatedBeanDefinition annDef) {
-				for (String type : annDef.getMetadata().getAnnotationTypes()) {
-					if (type.equals(jakarta.inject.Singleton.class.getName())) {
-						metadata.setScopeName(BeanDefinition.SCOPE_SINGLETON);
-						break;
-					}
-					else if (annDef.getMetadata().getMetaAnnotationTypes(type).contains(jakarta.inject.Scope.class.getName())) {
-						metadata.setScopeName(type.substring(type.length() - 13, type.length() - 6).toLowerCase());
-						metadata.setScopedProxyMode(scopedProxyMode);
-						break;
-					}
-					else if (type.startsWith("jakarta.inject")) {
-						metadata.setScopeName(BeanDefinition.SCOPE_PROTOTYPE);
+		scanner.setScopeMetadataResolver(new ScopeMetadataResolver() {
+			@Override
+			public ScopeMetadata resolveScopeMetadata(BeanDefinition definition) {
+				ScopeMetadata metadata = new ScopeMetadata();
+				if (definition instanceof AnnotatedBeanDefinition) {
+					AnnotatedBeanDefinition annDef = (AnnotatedBeanDefinition) definition;
+					for (String type : annDef.getMetadata().getAnnotationTypes()) {
+						if (type.equals(javax.inject.Singleton.class.getName())) {
+							metadata.setScopeName(BeanDefinition.SCOPE_SINGLETON);
+							break;
+						}
+						else if (annDef.getMetadata().getMetaAnnotationTypes(type).contains(javax.inject.Scope.class.getName())) {
+							metadata.setScopeName(type.substring(type.length() - 13, type.length() - 6).toLowerCase());
+							metadata.setScopedProxyMode(scopedProxyMode);
+							break;
+						}
+						else if (type.startsWith("javax.inject")) {
+							metadata.setScopeName(BeanDefinition.SCOPE_PROTOTYPE);
+						}
 					}
 				}
+				return metadata;
 			}
-			return metadata;
 		});
 
 		// Scan twice in order to find errors in the bean definition compatibility check.
@@ -385,14 +389,14 @@ class ClassPathBeanDefinitionScannerJsr330ScopeIntegrationTests {
 
 	@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE})
 	@Retention(RetentionPolicy.RUNTIME)
-	@jakarta.inject.Scope
+	@javax.inject.Scope
 	public @interface RequestScoped {
 	}
 
 
 	@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE})
 	@Retention(RetentionPolicy.RUNTIME)
-	@jakarta.inject.Scope
+	@javax.inject.Scope
 	public @interface SessionScoped {
 	}
 

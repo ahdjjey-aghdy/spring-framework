@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package org.springframework.messaging.simp.stomp;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +26,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.broker.TransportConnector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -48,6 +46,7 @@ import org.springframework.messaging.simp.broker.BrokerAvailabilityEvent;
 import org.springframework.messaging.support.ExecutorSubscribableChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
+import org.springframework.util.SocketUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -72,43 +71,31 @@ public class StompBrokerRelayMessageHandlerIntegrationTests {
 
 	private TestEventPublisher eventPublisher;
 
-	// initial value of zero implies that a random ephemeral port should be used
-	private int port = 0;
+	private int port;
 
 
 	@BeforeEach
-	@SuppressWarnings("deprecation")
-	public void setup(TestInfo testInfo) throws Exception {
+	public void setUp(TestInfo testInfo) throws Exception {
 		logger.debug("Setting up before '" + testInfo.getTestMethod().get().getName() + "'");
 
+		this.port = SocketUtils.findAvailableTcpPort(61613);
 		this.responseChannel = new ExecutorSubscribableChannel();
 		this.responseHandler = new TestMessageHandler();
 		this.responseChannel.subscribe(this.responseHandler);
 		this.eventPublisher = new TestEventPublisher();
-		startActiveMQBroker();
+		startActiveMqBroker();
 		createAndStartRelay();
 	}
 
-	private void startActiveMQBroker() throws Exception {
-		TransportConnector stompConnector = createStompConnector(this.port);
+	private void startActiveMqBroker() throws Exception {
 		this.activeMQBroker = new BrokerService();
-		this.activeMQBroker.addConnector(stompConnector);
+		this.activeMQBroker.addConnector("stomp://localhost:" + this.port);
 		this.activeMQBroker.setStartAsync(false);
 		this.activeMQBroker.setPersistent(false);
 		this.activeMQBroker.setUseJmx(false);
 		this.activeMQBroker.getSystemUsage().getMemoryUsage().setLimit(1024 * 1024 * 5);
 		this.activeMQBroker.getSystemUsage().getTempUsage().setLimit(1024 * 1024 * 5);
 		this.activeMQBroker.start();
-
-		// Reuse existing ephemeral port on restart (i.e., the next time this method
-		// is invoked) since it will already be configured in the relay
-		this.port = (this.port != 0 ? this.port : stompConnector.getServer().getSocketAddress().getPort());
-	}
-
-	private TransportConnector createStompConnector(int port) throws Exception {
-		TransportConnector connector = new TransportConnector();
-		connector.setUri(new URI("stomp://localhost:" + port));
-		return connector;
 	}
 
 	private void createAndStartRelay() throws InterruptedException {
@@ -230,7 +217,7 @@ public class StompBrokerRelayMessageHandlerIntegrationTests {
 
 		this.eventPublisher.expectBrokerAvailabilityEvent(false);
 
-		startActiveMQBroker();
+		startActiveMqBroker();
 		this.eventPublisher.expectBrokerAvailabilityEvent(true);
 	}
 
@@ -287,7 +274,8 @@ public class StompBrokerRelayMessageHandlerIntegrationTests {
 		}
 
 		public void expectMessages(MessageExchange... messageExchanges) throws InterruptedException {
-			List<MessageExchange> expectedMessages = new ArrayList<>(Arrays.asList(messageExchanges));
+			List<MessageExchange> expectedMessages =
+					new ArrayList<>(Arrays.<MessageExchange>asList(messageExchanges));
 			while (expectedMessages.size() > 0) {
 				Message<?> message = this.queue.poll(10000, TimeUnit.MILLISECONDS);
 				assertThat(message).as("Timed out waiting for messages, expected [" + expectedMessages + "]").isNotNull();
@@ -463,7 +451,7 @@ public class StompBrokerRelayMessageHandlerIntegrationTests {
 		@Override
 		public final boolean match(Message<?> message) {
 			StompHeaderAccessor headers = StompHeaderAccessor.wrap(message);
-			if (!this.command.equals(headers.getCommand()) || !this.sessionId.equals(headers.getSessionId())) {
+			if (!this.command.equals(headers.getCommand()) || (this.sessionId != headers.getSessionId())) {
 				return false;
 			}
 			return matchInternal(headers, message.getPayload());

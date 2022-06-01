@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,7 @@
 
 package org.springframework.aop.aspectj.annotation;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.aspectj.lang.reflect.PerClauseKind;
-
 import org.springframework.aop.Advisor;
 import org.springframework.aop.aspectj.AspectJProxyUtils;
 import org.springframework.aop.aspectj.SimpleAspectInstanceFactory;
@@ -31,10 +26,14 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * AspectJ-based proxy factory, allowing for programmatic building
  * of proxies which include AspectJ aspects (code style as well
- * annotation style).
+ * Java 5 annotation style).
  *
  * @author Rob Harrop
  * @author Juergen Hoeller
@@ -160,12 +159,23 @@ public class AspectJProxyFactory extends ProxyCreatorSupport {
 	}
 
 	/**
-	 * Get the singleton aspect instance for the supplied aspect type.
-	 * An instance is created if one cannot be found in the instance cache.
+	 * Get the singleton aspect instance for the supplied aspect type. An instance
+	 * is created if one cannot be found in the instance cache.
 	 */
 	private Object getSingletonAspectInstance(Class<?> aspectClass) {
-		return aspectCache.computeIfAbsent(aspectClass,
-				clazz -> new SimpleAspectInstanceFactory(clazz).getAspectInstance());
+		// Quick check without a lock...
+		Object instance = aspectCache.get(aspectClass);
+		if (instance == null) {
+			synchronized (aspectCache) {
+				// To be safe, check within full lock now...
+				instance = aspectCache.get(aspectClass);
+				if (instance == null) {
+					instance = new SimpleAspectInstanceFactory(aspectClass).getAspectInstance();
+					aspectCache.put(aspectClass, instance);
+				}
+			}
+		}
+		return instance;
 	}
 
 

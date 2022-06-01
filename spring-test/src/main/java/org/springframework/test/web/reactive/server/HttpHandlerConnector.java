@@ -24,15 +24,13 @@ import org.apache.commons.logging.LogFactory;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
+import reactor.core.publisher.MonoProcessor;
 import reactor.core.scheduler.Schedulers;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.client.reactive.ClientHttpResponse;
@@ -85,9 +83,8 @@ public class HttpHandlerConnector implements ClientHttpConnector {
 	private Mono<ClientHttpResponse> doConnect(
 			HttpMethod httpMethod, URI uri, Function<? super ClientHttpRequest, Mono<Void>> requestCallback) {
 
-		// unsafe(): we're intercepting, already serialized Publisher signals
-		Sinks.Empty<Void> requestWriteSink = Sinks.unsafe().empty();
-		Sinks.Empty<Void> handlerSink = Sinks.unsafe().empty();
+		MonoProcessor<Void> requestWriteCompletion = MonoProcessor.create();
+		MonoProcessor<Void> handlerCompletion = MonoProcessor.create();
 		ClientHttpResponse[] savedResponse = new ClientHttpResponse[1];
 
 		MockClientHttpRequest mockClientRequest = new MockClientHttpRequest(httpMethod, uri);
@@ -97,10 +94,7 @@ public class HttpHandlerConnector implements ClientHttpConnector {
 			log("Invoking HttpHandler for ", httpMethod, uri);
 			ServerHttpRequest mockServerRequest = adaptRequest(mockClientRequest, requestBody);
 			ServerHttpResponse responseToUse = prepareResponse(mockServerResponse, mockServerRequest);
-			this.handler.handle(mockServerRequest, responseToUse).subscribe(
-					aVoid -> {},
-					handlerSink::tryEmitError,  // Ignore result: signals cannot compete
-					handlerSink::tryEmitEmpty);
+			this.handler.handle(mockServerRequest, responseToUse).subscribe(handlerCompletion);
 			return Mono.empty();
 		});
 
@@ -111,12 +105,9 @@ public class HttpHandlerConnector implements ClientHttpConnector {
 				}));
 
 		log("Writing client request for ", httpMethod, uri);
-		requestCallback.apply(mockClientRequest).subscribe(
-				aVoid -> {},
-				requestWriteSink::tryEmitError,  // Ignore result: signals cannot compete
-				requestWriteSink::tryEmitEmpty);
+		requestCallback.apply(mockClientRequest).subscribe(requestWriteCompletion);
 
-		return Mono.when(requestWriteSink.asMono(), handlerSink.asMono())
+		return Mono.when(requestWriteCompletion, handlerCompletion)
 				.onErrorMap(ex -> {
 					ClientHttpResponse response = savedResponse[0];
 					return response != null ? new FailureAfterResponseCompletedException(response, ex) : ex;
@@ -144,8 +135,8 @@ public class HttpHandlerConnector implements ClientHttpConnector {
 	}
 
 	private ClientHttpResponse adaptResponse(MockServerHttpResponse response, Flux<DataBuffer> body) {
-		HttpStatusCode status = response.getStatusCode();
-		MockClientHttpResponse clientResponse = new MockClientHttpResponse((status != null) ? status : HttpStatus.OK);
+		Integer status = response.getRawStatusCode();
+		MockClientHttpResponse clientResponse = new MockClientHttpResponse((status != null) ? status : 200);
 		clientResponse.getHeaders().putAll(response.getHeaders());
 		clientResponse.getCookies().putAll(response.getCookies());
 		clientResponse.setBody(body);

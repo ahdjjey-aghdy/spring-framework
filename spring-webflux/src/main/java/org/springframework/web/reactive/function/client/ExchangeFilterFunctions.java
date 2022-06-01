@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,16 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.web.reactive.function.BodyExtractors;
 
 /**
  * Static factory methods providing access to built-in implementations of
@@ -43,8 +46,11 @@ public abstract class ExchangeFilterFunctions {
 
 	/**
 	 * Name of the request attribute with {@link Credentials} for {@link #basicAuthentication()}.
+	 * @deprecated as of Spring 5.1 in favor of using
+	 * {@link HttpHeaders#setBasicAuth(String, String)} while building the request.
 	 */
-	private static final String BASIC_AUTHENTICATION_CREDENTIALS_ATTRIBUTE =
+	@Deprecated
+	public static final String BASIC_AUTHENTICATION_CREDENTIALS_ATTRIBUTE =
 			ExchangeFilterFunctions.class.getName() + ".basicAuthenticationCredentials";
 
 
@@ -58,20 +64,21 @@ public abstract class ExchangeFilterFunctions {
 	 */
 	public static ExchangeFilterFunction limitResponseSize(long maxByteCount) {
 		return (request, next) ->
-				next.exchange(request).map(response ->
-						response.mutate()
-								.body(body -> DataBufferUtils.takeUntilByteCount(body, maxByteCount))
-								.build());
+				next.exchange(request).map(response -> {
+					Flux<DataBuffer> body = response.body(BodyExtractors.toDataBuffers());
+					body = DataBufferUtils.takeUntilByteCount(body, maxByteCount);
+					return ClientResponse.from(response).body(body).build();
+				});
 	}
 
 	/**
 	 * Return a filter that generates an error signal when the given
-	 * {@link HttpStatusCode} predicate matches.
+	 * {@link HttpStatus} predicate matches.
 	 * @param statusPredicate the predicate to check the HTTP status with
 	 * @param exceptionFunction the function that to create the exception
 	 * @return the filter to generate an error signal
 	 */
-	public static ExchangeFilterFunction statusError(Predicate<HttpStatusCode> statusPredicate,
+	public static ExchangeFilterFunction statusError(Predicate<HttpStatus> statusPredicate,
 			Function<ClientResponse, ? extends Throwable> exceptionFunction) {
 
 		Assert.notNull(statusPredicate, "Predicate must not be null");
@@ -113,7 +120,8 @@ public abstract class ExchangeFilterFunctions {
 	public static ExchangeFilterFunction basicAuthentication() {
 		return (request, next) -> {
 			Object attr = request.attributes().get(BASIC_AUTHENTICATION_CREDENTIALS_ATTRIBUTE);
-			if (attr instanceof Credentials cred) {
+			if (attr instanceof Credentials) {
+				Credentials cred = (Credentials) attr;
 				return next.exchange(ClientRequest.from(request)
 						.headers(headers -> headers.setBasicAuth(cred.username, cred.password))
 						.build());
@@ -170,9 +178,10 @@ public abstract class ExchangeFilterFunctions {
 			if (this == other) {
 				return true;
 			}
-			if (!(other instanceof Credentials otherCred)) {
+			if (!(other instanceof Credentials)) {
 				return false;
 			}
+			Credentials otherCred = (Credentials) other;
 			return (this.username.equals(otherCred.username) && this.password.equals(otherCred.password));
 		}
 

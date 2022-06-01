@@ -33,7 +33,6 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpRequest;
 import org.springframework.http.client.reactive.AbstractClientHttpRequest;
 import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.util.Assert;
@@ -47,11 +46,13 @@ import org.springframework.web.util.UriComponentsBuilder;
  * @author Rossen Stoyanchev
  * @since 5.0
  */
-public class MockClientHttpRequest extends AbstractClientHttpRequest implements HttpRequest {
+public class MockClientHttpRequest extends AbstractClientHttpRequest {
 
 	private final HttpMethod httpMethod;
 
 	private final URI url;
+
+	private final DataBufferFactory bufferFactory = new DefaultDataBufferFactory();
 
 	private Flux<DataBuffer> body = Flux.error(
 			new IllegalStateException("The body is not set. " +
@@ -96,25 +97,13 @@ public class MockClientHttpRequest extends AbstractClientHttpRequest implements 
 	}
 
 	@Override
-	@Deprecated
-	public String getMethodValue() {
-		return this.httpMethod.name();
-	}
-
-	@Override
 	public URI getURI() {
 		return this.url;
 	}
 
 	@Override
 	public DataBufferFactory bufferFactory() {
-		return DefaultDataBufferFactory.sharedInstance;
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> T getNativeRequest() {
-		return (T) this;
+		return this.bufferFactory;
 	}
 
 	@Override

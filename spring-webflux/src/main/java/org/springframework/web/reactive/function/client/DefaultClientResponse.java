@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,37 +17,29 @@
 package org.springframework.web.reactive.function.client;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.ResolvableType;
-import org.springframework.core.codec.Decoder;
 import org.springframework.core.codec.Hints;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ClientHttpResponse;
-import org.springframework.http.codec.DecoderHttpMessageReader;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyExtractor;
@@ -62,9 +54,6 @@ import org.springframework.web.reactive.function.BodyExtractors;
  */
 class DefaultClientResponse implements ClientResponse {
 
-	private static final byte[] EMPTY = new byte[0];
-
-
 	private final ClientHttpResponse response;
 
 	private final Headers headers;
@@ -77,8 +66,6 @@ class DefaultClientResponse implements ClientResponse {
 
 	private final Supplier<HttpRequest> requestSupplier;
 
-	private final BodyExtractor.Context bodyExtractorContext;
-
 
 	public DefaultClientResponse(ClientHttpResponse response, ExchangeStrategies strategies,
 			String logPrefix, String requestDescription, Supplier<HttpRequest> requestSupplier) {
@@ -89,22 +76,6 @@ class DefaultClientResponse implements ClientResponse {
 		this.logPrefix = logPrefix;
 		this.requestDescription = requestDescription;
 		this.requestSupplier = requestSupplier;
-		this.bodyExtractorContext = new BodyExtractor.Context() {
-			@Override
-			public List<HttpMessageReader<?>> messageReaders() {
-				return strategies.messageReaders();
-			}
-
-			@Override
-			public Optional<ServerHttpResponse> serverResponse() {
-				return Optional.empty();
-			}
-
-			@Override
-			public Map<String, Object> hints() {
-				return Hints.from(Hints.LOG_PREFIX_HINT, logPrefix);
-			}
-		};
 	}
 
 
@@ -114,12 +85,11 @@ class DefaultClientResponse implements ClientResponse {
 	}
 
 	@Override
-	public HttpStatusCode statusCode() {
+	public HttpStatus statusCode() {
 		return this.response.getStatusCode();
 	}
 
 	@Override
-	@Deprecated
 	public int rawStatusCode() {
 		return this.response.getRawStatusCode();
 	}
@@ -137,7 +107,22 @@ class DefaultClientResponse implements ClientResponse {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T> T body(BodyExtractor<T, ? super ClientHttpResponse> extractor) {
-		T result = extractor.extract(this.response, this.bodyExtractorContext);
+		T result = extractor.extract(this.response, new BodyExtractor.Context() {
+			@Override
+			public List<HttpMessageReader<?>> messageReaders() {
+				return strategies.messageReaders();
+			}
+
+			@Override
+			public Optional<ServerHttpResponse> serverResponse() {
+				return Optional.empty();
+			}
+
+			@Override
+			public Map<String, Object> hints() {
+				return Hints.from(Hints.LOG_PREFIX_HINT, logPrefix);
+			}
+		});
 		String description = "Body from " + this.requestDescription + " [DefaultClientResponse]";
 		if (result instanceof Mono) {
 			return (T) ((Mono<?>) result).checkpoint(description);
@@ -161,10 +146,8 @@ class DefaultClientResponse implements ClientResponse {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public <T> Flux<T> bodyToFlux(Class<? extends T> elementClass) {
-		return elementClass.equals(DataBuffer.class) ?
-				(Flux<T>) body(BodyExtractors.toDataBuffers()) : body(BodyExtractors.toFlux(elementClass));
+		return body(BodyExtractors.toFlux(elementClass));
 	}
 
 	@Override
@@ -204,19 +187,23 @@ class DefaultClientResponse implements ClientResponse {
 
 	@Override
 	public Mono<WebClientResponseException> createException() {
-		return bodyToMono(byte[].class)
-				.defaultIfEmpty(EMPTY)
-				.onErrorReturn(ex -> !(ex instanceof Error), EMPTY)
+		return DataBufferUtils.join(body(BodyExtractors.toDataBuffers()))
+				.map(dataBuffer -> {
+					byte[] bytes = new byte[dataBuffer.readableByteCount()];
+					dataBuffer.read(bytes);
+					DataBufferUtils.release(dataBuffer);
+					return bytes;
+				})
+				.defaultIfEmpty(new byte[0])
 				.map(bodyBytes -> {
-
 					HttpRequest request = this.requestSupplier.get();
-					Optional<MediaType> mediaType = headers().contentType();
-					Charset charset = mediaType.map(MimeType::getCharset).orElse(null);
-					HttpStatusCode statusCode = statusCode();
-
-					WebClientResponseException exception;
-					if (statusCode instanceof HttpStatus httpStatus) {
-						exception = WebClientResponseException.create(
+					Charset charset = headers().contentType()
+							.map(MimeType::getCharset)
+							.orElse(StandardCharsets.ISO_8859_1);
+					int statusCode = rawStatusCode();
+					HttpStatus httpStatus = HttpStatus.resolve(statusCode);
+					if (httpStatus != null) {
+						return WebClientResponseException.create(
 								statusCode,
 								httpStatus.getReasonPhrase(),
 								headers().asHttpHeaders(),
@@ -225,38 +212,14 @@ class DefaultClientResponse implements ClientResponse {
 								request);
 					}
 					else {
-						exception = new UnknownHttpStatusCodeException(
+						return new UnknownHttpStatusCodeException(
 								statusCode,
 								headers().asHttpHeaders(),
 								bodyBytes,
 								charset,
 								request);
 					}
-					exception.setBodyDecodeFunction(initDecodeFunction(bodyBytes, mediaType.orElse(null)));
-					return exception;
 				});
-	}
-
-	private Function<ResolvableType, ?> initDecodeFunction(byte[] body, @Nullable MediaType contentType) {
-		return targetType -> {
-			Decoder<?> decoder = null;
-			for (HttpMessageReader<?> reader : strategies().messageReaders()) {
-				if (reader.canRead(targetType, contentType)) {
-					if (reader instanceof DecoderHttpMessageReader<?> decoderReader) {
-						decoder = decoderReader.getDecoder();
-						break;
-					}
-				}
-			}
-			Assert.state(decoder != null, "No suitable decoder");
-			DataBuffer buffer = DefaultDataBufferFactory.sharedInstance.wrap(body);
-			return decoder.decode(buffer, targetType, null, Collections.emptyMap());
-		};
-	}
-
-	@Override
-	public <T> Mono<T> createError() {
-		return createException().flatMap(Mono::error);
 	}
 
 	@Override
@@ -271,28 +234,29 @@ class DefaultClientResponse implements ClientResponse {
 
 	private class DefaultHeaders implements Headers {
 
-		private final HttpHeaders httpHeaders =
-				HttpHeaders.readOnlyHttpHeaders(response.getHeaders());
+		private HttpHeaders delegate() {
+			return response.getHeaders();
+		}
 
 		@Override
 		public OptionalLong contentLength() {
-			return toOptionalLong(this.httpHeaders.getContentLength());
+			return toOptionalLong(delegate().getContentLength());
 		}
 
 		@Override
 		public Optional<MediaType> contentType() {
-			return Optional.ofNullable(this.httpHeaders.getContentType());
+			return Optional.ofNullable(delegate().getContentType());
 		}
 
 		@Override
 		public List<String> header(String headerName) {
-			List<String> headerValues = this.httpHeaders.get(headerName);
+			List<String> headerValues = delegate().get(headerName);
 			return (headerValues != null ? headerValues : Collections.emptyList());
 		}
 
 		@Override
 		public HttpHeaders asHttpHeaders() {
-			return this.httpHeaders;
+			return HttpHeaders.readOnlyHttpHeaders(delegate());
 		}
 
 		private OptionalLong toOptionalLong(long value) {

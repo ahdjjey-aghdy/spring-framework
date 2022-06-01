@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package org.springframework.aop.support.annotation;
 
-import java.lang.annotation.Annotation;
-
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
@@ -25,9 +23,12 @@ import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
+import java.lang.annotation.Annotation;
+
 /**
- * Simple {@link Pointcut} that looks for a specific annotation being present on a
- * {@linkplain #forClassAnnotation class} or {@linkplain #forMethodAnnotation method}.
+ * Simple Pointcut that looks for a specific Java 5 annotation
+ * being present on a {@link #forClassAnnotation class} or
+ * {@link #forMethodAnnotation method}.
  *
  * @author Juergen Hoeller
  * @author Sam Brannen
@@ -124,9 +125,10 @@ public class AnnotationMatchingPointcut implements Pointcut {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof AnnotationMatchingPointcut otherPointcut)) {
+		if (!(other instanceof AnnotationMatchingPointcut)) {
 			return false;
 		}
+		AnnotationMatchingPointcut otherPointcut = (AnnotationMatchingPointcut) other;
 		return (this.classFilter.equals(otherPointcut.classFilter) &&
 				this.methodMatcher.equals(otherPointcut.methodMatcher));
 	}
@@ -187,9 +189,10 @@ public class AnnotationMatchingPointcut implements Pointcut {
 			if (this == obj) {
 				return true;
 			}
-			if (!(obj instanceof AnnotationCandidateClassFilter that)) {
+			if (!(obj instanceof AnnotationCandidateClassFilter)) {
 				return false;
 			}
+			AnnotationCandidateClassFilter that = (AnnotationCandidateClassFilter) obj;
 			return this.annotationType.equals(that.annotationType);
 		}
 

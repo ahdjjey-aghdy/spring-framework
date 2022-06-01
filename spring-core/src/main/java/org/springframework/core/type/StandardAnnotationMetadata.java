@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -143,31 +143,33 @@ public class StandardAnnotationMetadata extends StandardClassMetadata implements
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public Set<MethodMetadata> getAnnotatedMethods(String annotationName) {
-		Set<MethodMetadata> result = new LinkedHashSet<>(4);
+		Set<MethodMetadata> annotatedMethods = null;
 		if (AnnotationUtils.isCandidateClass(getIntrospectedClass(), annotationName)) {
-			ReflectionUtils.doWithLocalMethods(getIntrospectedClass(), method -> {
-				if (isAnnotatedMethod(method, annotationName)) {
-					result.add(new StandardMethodMetadata(method, this.nestedAnnotationsAsMap));
+			try {
+				Method[] methods = ReflectionUtils.getDeclaredMethods(getIntrospectedClass());
+				for (Method method : methods) {
+					if (isAnnotatedMethod(method, annotationName)) {
+						if (annotatedMethods == null) {
+							annotatedMethods = new LinkedHashSet<>(4);
+						}
+						annotatedMethods.add(new StandardMethodMetadata(method, this.nestedAnnotationsAsMap));
+					}
 				}
-			});
+			}
+			catch (Throwable ex) {
+				throw new IllegalStateException("Failed to introspect annotated methods on " + getIntrospectedClass(), ex);
+			}
 		}
-		return result;
+		return annotatedMethods != null ? annotatedMethods : Collections.emptySet();
 	}
 
-	@Override
-	public Set<MethodMetadata> getDeclaredMethods() {
-		Set<MethodMetadata> result = new LinkedHashSet<>(16);
-		ReflectionUtils.doWithLocalMethods(getIntrospectedClass(), method ->
-				result.add(new StandardMethodMetadata(method, this.nestedAnnotationsAsMap)));
-		return result;
-	}
-
-
-	private static boolean isAnnotatedMethod(Method method, String annotationName) {
+	private boolean isAnnotatedMethod(Method method, String annotationName) {
 		return !method.isBridge() && method.getAnnotations().length > 0 &&
 				AnnotatedElementUtils.isAnnotated(method, annotationName);
 	}
+
 
 	static AnnotationMetadata from(Class<?> introspectedClass) {
 		return new StandardAnnotationMetadata(introspectedClass, true);

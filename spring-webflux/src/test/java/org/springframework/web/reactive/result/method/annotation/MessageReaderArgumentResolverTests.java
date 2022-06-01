@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,16 +27,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.core.Maybe;
-import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.core.Single;
-import jakarta.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
+import io.reactivex.Flowable;
+import io.reactivex.Maybe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import rx.Observable;
+import rx.Single;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
@@ -139,11 +140,21 @@ public class MessageReaderArgumentResolverTests {
 		MethodParameter param = this.testMethod.arg(type);
 		Single<TestBean> single = resolveValue(param, body);
 
+		assertThat(single.toBlocking().value()).isEqualTo(new TestBean("f1", "b1"));
+	}
+
+	@Test
+	public void rxJava2SingleTestBean() throws Exception {
+		String body = "{\"bar\":\"b1\",\"foo\":\"f1\"}";
+		ResolvableType type = forClassWithGenerics(io.reactivex.Single.class, TestBean.class);
+		MethodParameter param = this.testMethod.arg(type);
+		io.reactivex.Single<TestBean> single = resolveValue(param, body);
+
 		assertThat(single.blockingGet()).isEqualTo(new TestBean("f1", "b1"));
 	}
 
 	@Test
-	public void maybeTestBean() throws Exception {
+	public void rxJava2MaybeTestBean() throws Exception {
 		String body = "{\"bar\":\"b1\",\"foo\":\"f1\"}";
 		ResolvableType type = forClassWithGenerics(Maybe.class, TestBean.class);
 		MethodParameter param = this.testMethod.arg(type);
@@ -158,6 +169,16 @@ public class MessageReaderArgumentResolverTests {
 		ResolvableType type = forClassWithGenerics(Observable.class, TestBean.class);
 		MethodParameter param = this.testMethod.arg(type);
 		Observable<?> observable = resolveValue(param, body);
+
+		assertThat(observable.toList().toBlocking().first()).isEqualTo(Arrays.asList(new TestBean("f1", "b1"), new TestBean("f2", "b2")));
+	}
+
+	@Test
+	public void rxJava2ObservableTestBean() throws Exception {
+		String body = "[{\"bar\":\"b1\",\"foo\":\"f1\"},{\"bar\":\"b2\",\"foo\":\"f2\"}]";
+		ResolvableType type = forClassWithGenerics(io.reactivex.Observable.class, TestBean.class);
+		MethodParameter param = this.testMethod.arg(type);
+		io.reactivex.Observable<?> observable = resolveValue(param, body);
 
 		assertThat(observable.toList().blockingGet()).isEqualTo(Arrays.asList(new TestBean("f1", "b1"), new TestBean("f2", "b2")));
 	}
@@ -303,8 +324,10 @@ public class MessageReaderArgumentResolverTests {
 			@Validated Mono<TestBean> monoTestBean,
 			@Validated Flux<TestBean> fluxTestBean,
 			Single<TestBean> singleTestBean,
-			Maybe<TestBean> maybeTestBean,
+			io.reactivex.Single<TestBean> rxJava2SingleTestBean,
+			Maybe<TestBean> rxJava2MaybeTestBean,
 			Observable<TestBean> observableTestBean,
+			io.reactivex.Observable<TestBean> rxJava2ObservableTestBean,
 			Flowable<TestBean> flowableTestBean,
 			CompletableFuture<TestBean> futureTestBean,
 			TestBean testBean,
@@ -353,7 +376,8 @@ public class MessageReaderArgumentResolverTests {
 			if (this == o) {
 				return true;
 			}
-			if (o instanceof TestBean other) {
+			if (o instanceof TestBean) {
+				TestBean other = (TestBean) o;
 				return this.foo.equals(other.foo) && this.bar.equals(other.bar);
 			}
 			return false;

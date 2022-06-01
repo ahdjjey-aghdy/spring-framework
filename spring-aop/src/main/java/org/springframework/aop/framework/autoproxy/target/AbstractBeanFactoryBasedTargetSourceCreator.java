@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,8 @@
 
 package org.springframework.aop.framework.autoproxy.target;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.aop.TargetSource;
 import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.aop.framework.autoproxy.TargetSourceCreator;
@@ -34,6 +30,9 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.lang.Nullable;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Convenient superclass for
@@ -125,8 +124,12 @@ public abstract class AbstractBeanFactoryBasedTargetSourceCreator
 	 */
 	protected DefaultListableBeanFactory getInternalBeanFactoryForBean(String beanName) {
 		synchronized (this.internalBeanFactories) {
-			return this.internalBeanFactories.computeIfAbsent(beanName,
-					name -> buildInternalBeanFactory(this.beanFactory));
+			DefaultListableBeanFactory internalBeanFactory = this.internalBeanFactories.get(beanName);
+			if (internalBeanFactory == null) {
+				internalBeanFactory = buildInternalBeanFactory(this.beanFactory);
+				this.internalBeanFactories.put(beanName, internalBeanFactory);
+			}
+			return internalBeanFactory;
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 
 package org.springframework.test.web.servlet.setup;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.ServletContext;
+import javax.servlet.Filter;
+import javax.servlet.ServletContext;
 
 import org.springframework.lang.Nullable;
 import org.springframework.mock.web.MockServletConfig;
@@ -49,20 +48,16 @@ import org.springframework.web.context.WebApplicationContext;
  *
  * @author Rossen Stoyanchev
  * @author Stephane Nicoll
- * @author Sam Brannen
  * @since 4.0
  * @param <B> a self reference to the builder type
  */
 public abstract class AbstractMockMvcBuilder<B extends AbstractMockMvcBuilder<B>>
 		extends MockMvcBuilderSupport implements ConfigurableMockMvcBuilder<B> {
 
-	private final List<Filter> filters = new ArrayList<>();
+	private List<Filter> filters = new ArrayList<>();
 
 	@Nullable
 	private RequestBuilder defaultRequestBuilder;
-
-	@Nullable
-	private Charset defaultResponseCharacterEncoding;
 
 	private final List<ResultMatcher> globalResultMatchers = new ArrayList<>();
 
@@ -100,17 +95,6 @@ public abstract class AbstractMockMvcBuilder<B extends AbstractMockMvcBuilder<B>
 		return self();
 	}
 
-	/**
-	 * Define the default character encoding to be applied to every response.
-	 * @param defaultResponseCharacterEncoding the default response character encoding
-	 * @since 5.3.10
-	 */
-	@Override
-	public final <T extends B> T defaultResponseCharacterEncoding(Charset defaultResponseCharacterEncoding) {
-		this.defaultResponseCharacterEncoding = defaultResponseCharacterEncoding;
-		return self();
-	}
-
 	@Override
 	public final <T extends B> T alwaysExpect(ResultMatcher resultMatcher) {
 		this.globalResultMatchers.add(resultMatcher);
@@ -123,7 +107,6 @@ public abstract class AbstractMockMvcBuilder<B extends AbstractMockMvcBuilder<B>
 		return self();
 	}
 
-	@Override
 	public final <T extends B> T addDispatcherServletCustomizer(DispatcherServletCustomizer customizer) {
 		this.dispatcherServletCustomizers.add(customizer);
 		return self();
@@ -173,8 +156,7 @@ public abstract class AbstractMockMvcBuilder<B extends AbstractMockMvcBuilder<B>
 		Filter[] filterArray = this.filters.toArray(new Filter[0]);
 
 		return super.createMockMvc(filterArray, mockServletConfig, wac, this.defaultRequestBuilder,
-				this.defaultResponseCharacterEncoding, this.globalResultMatchers, this.globalResultHandlers,
-				this.dispatcherServletCustomizers);
+				this.globalResultMatchers, this.globalResultHandlers, this.dispatcherServletCustomizers);
 	}
 
 	/**

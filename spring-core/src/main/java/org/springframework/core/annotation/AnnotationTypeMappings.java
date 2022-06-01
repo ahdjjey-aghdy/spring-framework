@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,8 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.lang.Nullable;
 import org.springframework.util.ConcurrentReferenceHashMap;
@@ -32,7 +30,7 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * Provides {@link AnnotationTypeMapping} information for a single source
  * annotation type. Performs a recursive breadth first crawl of all
  * meta-annotations to ultimately provide a quick way to map the attributes of
- * a root {@link Annotation}.
+ * root {@link Annotation}.
  *
  * <p>Supports convention based merging of meta-annotations as well as implicit
  * and explicit {@link AliasFor @AliasFor} aliases. Also provides information
@@ -42,7 +40,6 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * be searched once, regardless of how many times they are actually used.
  *
  * @author Phillip Webb
- * @author Sam Brannen
  * @since 5.2
  * @see AnnotationTypeMapping
  */
@@ -63,22 +60,19 @@ final class AnnotationTypeMappings {
 
 
 	private AnnotationTypeMappings(RepeatableContainers repeatableContainers,
-			AnnotationFilter filter, Class<? extends Annotation> annotationType,
-			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
+			AnnotationFilter filter, Class<? extends Annotation> annotationType) {
 
 		this.repeatableContainers = repeatableContainers;
 		this.filter = filter;
 		this.mappings = new ArrayList<>();
-		addAllMappings(annotationType, visitedAnnotationTypes);
+		addAllMappings(annotationType);
 		this.mappings.forEach(AnnotationTypeMapping::afterAllMappingsSet);
 	}
 
 
-	private void addAllMappings(Class<? extends Annotation> annotationType,
-			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
+	private void addAllMappings(Class<? extends Annotation> annotationType) {
 		Deque<AnnotationTypeMapping> queue = new ArrayDeque<>();
-		addIfPossible(queue, null, annotationType, null, visitedAnnotationTypes);
+		addIfPossible(queue, null, annotationType, null);
 		while (!queue.isEmpty()) {
 			AnnotationTypeMapping mapping = queue.removeFirst();
 			this.mappings.add(mapping);
@@ -87,15 +81,17 @@ final class AnnotationTypeMappings {
 	}
 
 	private void addMetaAnnotationsToQueue(Deque<AnnotationTypeMapping> queue, AnnotationTypeMapping source) {
-		Annotation[] metaAnnotations = AnnotationsScanner.getDeclaredAnnotations(source.getAnnotationType(), false);
+		Annotation[] metaAnnotations =
+				AnnotationsScanner.getDeclaredAnnotations(source.getAnnotationType(), false);
 		for (Annotation metaAnnotation : metaAnnotations) {
 			if (!isMappable(source, metaAnnotation)) {
 				continue;
 			}
-			Annotation[] repeatedAnnotations = this.repeatableContainers.findRepeatedAnnotations(metaAnnotation);
+			Annotation[] repeatedAnnotations = this.repeatableContainers
+					.findRepeatedAnnotations(metaAnnotation);
 			if (repeatedAnnotations != null) {
 				for (Annotation repeatedAnnotation : repeatedAnnotations) {
-					if (!isMappable(source, repeatedAnnotation)) {
+					if (!isMappable(source, metaAnnotation)) {
 						continue;
 					}
 					addIfPossible(queue, source, repeatedAnnotation);
@@ -107,16 +103,17 @@ final class AnnotationTypeMappings {
 		}
 	}
 
-	private void addIfPossible(Deque<AnnotationTypeMapping> queue, AnnotationTypeMapping source, Annotation ann) {
-		addIfPossible(queue, source, ann.annotationType(), ann, new HashSet<>());
+	private void addIfPossible(Deque<AnnotationTypeMapping> queue,
+			AnnotationTypeMapping source, Annotation ann) {
+
+		addIfPossible(queue, source, ann.annotationType(), ann);
 	}
 
 	private void addIfPossible(Deque<AnnotationTypeMapping> queue, @Nullable AnnotationTypeMapping source,
-			Class<? extends Annotation> annotationType, @Nullable Annotation ann,
-			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
+			Class<? extends Annotation> annotationType, @Nullable Annotation ann) {
 
 		try {
-			queue.addLast(new AnnotationTypeMapping(source, annotationType, ann, visitedAnnotationTypes));
+			queue.addLast(new AnnotationTypeMapping(source, annotationType, ann));
 		}
 		catch (Exception ex) {
 			AnnotationUtils.rethrowAnnotationConfigurationException(ex);
@@ -173,64 +170,45 @@ final class AnnotationTypeMappings {
 	 * @return type mappings for the annotation type
 	 */
 	static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType) {
-		return forAnnotationType(annotationType, new HashSet<>());
+		return forAnnotationType(annotationType, AnnotationFilter.PLAIN);
 	}
 
 	/**
 	 * Create {@link AnnotationTypeMappings} for the specified annotation type.
 	 * @param annotationType the source annotation type
-	 * @param visitedAnnotationTypes the set of annotations that we have already
-	 * visited; used to avoid infinite recursion for recursive annotations which
-	 * some JVM languages support (such as Kotlin)
-	 * @return type mappings for the annotation type
-	 */
-	static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
-			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
-		return forAnnotationType(annotationType, RepeatableContainers.standardRepeatables(),
-				AnnotationFilter.PLAIN, visitedAnnotationTypes);
-	}
-
-	/**
-	 * Create {@link AnnotationTypeMappings} for the specified annotation type.
-	 * @param annotationType the source annotation type
-	 * @param repeatableContainers the repeatable containers that may be used by
-	 * the meta-annotations
 	 * @param annotationFilter the annotation filter used to limit which
 	 * annotations are considered
 	 * @return type mappings for the annotation type
 	 */
-	static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
-			RepeatableContainers repeatableContainers, AnnotationFilter annotationFilter) {
+	static AnnotationTypeMappings forAnnotationType(
+			Class<? extends Annotation> annotationType, AnnotationFilter annotationFilter) {
 
-		return forAnnotationType(annotationType, repeatableContainers, annotationFilter, new HashSet<>());
+		return forAnnotationType(annotationType,
+				RepeatableContainers.standardRepeatables(), annotationFilter);
 	}
 
 	/**
 	 * Create {@link AnnotationTypeMappings} for the specified annotation type.
 	 * @param annotationType the source annotation type
-	 * @param repeatableContainers the repeatable containers that may be used by
-	 * the meta-annotations
 	 * @param annotationFilter the annotation filter used to limit which
 	 * annotations are considered
-	 * @param visitedAnnotationTypes the set of annotations that we have already
-	 * visited; used to avoid infinite recursion for recursive annotations which
-	 * some JVM languages support (such as Kotlin)
 	 * @return type mappings for the annotation type
 	 */
-	private static AnnotationTypeMappings forAnnotationType(Class<? extends Annotation> annotationType,
-			RepeatableContainers repeatableContainers, AnnotationFilter annotationFilter,
-			Set<Class<? extends Annotation>> visitedAnnotationTypes) {
+	static AnnotationTypeMappings forAnnotationType(
+			Class<? extends Annotation> annotationType,
+			RepeatableContainers repeatableContainers,
+			AnnotationFilter annotationFilter) {
 
 		if (repeatableContainers == RepeatableContainers.standardRepeatables()) {
 			return standardRepeatablesCache.computeIfAbsent(annotationFilter,
-					key -> new Cache(repeatableContainers, key)).get(annotationType, visitedAnnotationTypes);
+					key -> new Cache(repeatableContainers, key)).get(annotationType);
 		}
 		if (repeatableContainers == RepeatableContainers.none()) {
 			return noRepeatablesCache.computeIfAbsent(annotationFilter,
-					key -> new Cache(repeatableContainers, key)).get(annotationType, visitedAnnotationTypes);
+					key -> new Cache(repeatableContainers, key)).get(annotationType);
 		}
-		return new AnnotationTypeMappings(repeatableContainers, annotationFilter, annotationType, visitedAnnotationTypes);
+		return new AnnotationTypeMappings(repeatableContainers, annotationFilter,
+				annotationType);
 	}
 
 	static void clearCache() {
@@ -263,21 +241,14 @@ final class AnnotationTypeMappings {
 		/**
 		 * Get or create {@link AnnotationTypeMappings} for the specified annotation type.
 		 * @param annotationType the annotation type
-		 * @param visitedAnnotationTypes the set of annotations that we have already
-		 * visited; used to avoid infinite recursion for recursive annotations which
-		 * some JVM languages support (such as Kotlin)
 		 * @return a new or existing {@link AnnotationTypeMappings} instance
 		 */
-		AnnotationTypeMappings get(Class<? extends Annotation> annotationType,
-				Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
-			return this.mappings.computeIfAbsent(annotationType, key -> createMappings(key, visitedAnnotationTypes));
+		AnnotationTypeMappings get(Class<? extends Annotation> annotationType) {
+			return this.mappings.computeIfAbsent(annotationType, this::createMappings);
 		}
 
-		private AnnotationTypeMappings createMappings(Class<? extends Annotation> annotationType,
-				Set<Class<? extends Annotation>> visitedAnnotationTypes) {
-
-			return new AnnotationTypeMappings(this.repeatableContainers, this.filter, annotationType, visitedAnnotationTypes);
+		AnnotationTypeMappings createMappings(Class<? extends Annotation> annotationType) {
+			return new AnnotationTypeMappings(this.repeatableContainers, this.filter, annotationType);
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,8 @@
 
 package org.springframework.aop.framework;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.aopalliance.aop.Advice;
-
-import org.springframework.aop.Advisor;
-import org.springframework.aop.DynamicIntroductionAdvice;
-import org.springframework.aop.IntroductionAdvisor;
-import org.springframework.aop.IntroductionInfo;
-import org.springframework.aop.TargetSource;
+import org.springframework.aop.*;
 import org.springframework.aop.support.DefaultIntroductionAdvisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.aop.target.EmptyTargetSource;
@@ -41,6 +26,12 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Base class for AOP proxy configuration managers.
@@ -94,6 +85,12 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * in an Advisor before being added to this List.
 	 */
 	private List<Advisor> advisors = new ArrayList<>();
+
+	/**
+	 * Array updated on changes to the advisors list, which is easier
+	 * to manipulate internally.
+	 */
+	private Advisor[] advisorArray = new Advisor[0];
 
 
 	/**
@@ -238,12 +235,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 
 	@Override
 	public final Advisor[] getAdvisors() {
-		return this.advisors.toArray(new Advisor[0]);
-	}
-
-	@Override
-	public int getAdvisorCount() {
-		return this.advisors.size();
+		return this.advisorArray;
 	}
 
 	@Override
@@ -283,13 +275,15 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		}
 
 		Advisor advisor = this.advisors.remove(index);
-		if (advisor instanceof IntroductionAdvisor ia) {
+		if (advisor instanceof IntroductionAdvisor) {
+			IntroductionAdvisor ia = (IntroductionAdvisor) advisor;
 			// We need to remove introduction interfaces.
 			for (Class<?> ifc : ia.getInterfaces()) {
 				removeInterface(ifc);
 			}
 		}
 
+		updateAdvisorArray();
 		adviceChanged();
 	}
 
@@ -336,6 +330,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 				Assert.notNull(advisor, "Advisor must not be null");
 				this.advisors.add(advisor);
 			}
+			updateAdvisorArray();
 			adviceChanged();
 		}
 	}
@@ -359,17 +354,26 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 					"Illegal position " + pos + " in advisor list with size " + this.advisors.size());
 		}
 		this.advisors.add(pos, advisor);
+		updateAdvisorArray();
 		adviceChanged();
 	}
 
 	/**
+	 * Bring the array up to date with the list.
+	 */
+	protected final void updateAdvisorArray() {
+		this.advisorArray = this.advisors.toArray(new Advisor[0]);
+	}
+
+	/**
 	 * Allows uncontrolled access to the {@link List} of {@link Advisor Advisors}.
-	 * <p>Use with care, and remember to {@link #adviceChanged() fire advice changed events}
-	 * when making any modifications.
+	 * <p>Use with care, and remember to {@link #updateAdvisorArray() refresh the advisor array}
+	 * and {@link #adviceChanged() fire advice changed events} when making any modifications.
 	 */
 	protected final List<Advisor> getAdvisorsInternal() {
 		return this.advisors;
 	}
+
 
 	@Override
 	public void addAdvice(Advice advice) throws AopConfigException {
@@ -508,6 +512,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 			Assert.notNull(advisor, "Advisor must not be null");
 			this.advisors.add(advisor);
 		}
+		updateAdvisorArray();
 		adviceChanged();
 	}
 
@@ -520,8 +525,9 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		copy.copyFrom(this);
 		copy.targetSource = EmptyTargetSource.forClass(getTargetClass(), getTargetSource().isStatic());
 		copy.advisorChainFactory = this.advisorChainFactory;
-		copy.interfaces = new ArrayList<>(this.interfaces);
-		copy.advisors = new ArrayList<>(this.advisors);
+		copy.interfaces = this.interfaces;
+		copy.advisors = this.advisors;
+		copy.updateAdvisorArray();
 		return copy;
 	}
 
@@ -537,6 +543,7 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 		// Initialize transient fields.
 		this.methodCache = new ConcurrentHashMap<>(32);
 	}
+
 
 	@Override
 	public String toProxyConfigString() {

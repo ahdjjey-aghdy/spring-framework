@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -184,10 +184,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private MethodOverrides methodOverrides = new MethodOverrides();
 
 	@Nullable
-	private String[] initMethodNames;
+	private String initMethodName;
 
 	@Nullable
-	private String[] destroyMethodNames;
+	private String destroyMethodName;
 
 	private boolean enforceInitMethod = true;
 
@@ -236,7 +236,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		setSource(original.getSource());
 		copyAttributesFrom(original);
 
-		if (original instanceof AbstractBeanDefinition originalAbd) {
+		if (original instanceof AbstractBeanDefinition) {
+			AbstractBeanDefinition originalAbd = (AbstractBeanDefinition) original;
 			if (originalAbd.hasBeanClass()) {
 				setBeanClass(originalAbd.getBeanClass());
 			}
@@ -262,9 +263,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 			setInstanceSupplier(originalAbd.getInstanceSupplier());
 			setNonPublicAccessAllowed(originalAbd.isNonPublicAccessAllowed());
 			setLenientConstructorResolution(originalAbd.isLenientConstructorResolution());
-			setInitMethodNames(originalAbd.getInitMethodNames());
+			setInitMethodName(originalAbd.getInitMethodName());
 			setEnforceInitMethod(originalAbd.isEnforceInitMethod());
-			setDestroyMethodNames(originalAbd.getDestroyMethodNames());
+			setDestroyMethodName(originalAbd.getDestroyMethodName());
 			setEnforceDestroyMethod(originalAbd.isEnforceDestroyMethod());
 			setSynthetic(originalAbd.isSynthetic());
 			setResource(originalAbd.getResource());
@@ -312,7 +313,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		setSource(other.getSource());
 		copyAttributesFrom(other);
 
-		if (other instanceof AbstractBeanDefinition otherAbd) {
+		if (other instanceof AbstractBeanDefinition) {
+			AbstractBeanDefinition otherAbd = (AbstractBeanDefinition) other;
 			if (otherAbd.hasBeanClass()) {
 				setBeanClass(otherAbd.getBeanClass());
 			}
@@ -338,12 +340,12 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 			setInstanceSupplier(otherAbd.getInstanceSupplier());
 			setNonPublicAccessAllowed(otherAbd.isNonPublicAccessAllowed());
 			setLenientConstructorResolution(otherAbd.isLenientConstructorResolution());
-			if (otherAbd.getInitMethodNames() != null) {
-				setInitMethodNames(otherAbd.getInitMethodNames());
+			if (otherAbd.getInitMethodName() != null) {
+				setInitMethodName(otherAbd.getInitMethodName());
 				setEnforceInitMethod(otherAbd.isEnforceInitMethod());
 			}
-			if (otherAbd.getDestroyMethodNames() != null) {
-				setDestroyMethodNames(otherAbd.getDestroyMethodNames());
+			if (otherAbd.getDestroyMethodName() != null) {
+				setDestroyMethodName(otherAbd.getDestroyMethodName());
 				setEnforceDestroyMethod(otherAbd.isEnforceDestroyMethod());
 			}
 			setSynthetic(otherAbd.isSynthetic());
@@ -390,7 +392,13 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	@Override
 	@Nullable
 	public String getBeanClassName() {
-		return (this.beanClass instanceof Class<?> clazz ? clazz.getName() : (String) this.beanClass);
+		Object beanClassObject = this.beanClass;
+		if (beanClassObject instanceof Class) {
+			return ((Class<?>) beanClassObject).getName();
+		}
+		else {
+			return (String) beanClassObject;
+		}
 	}
 
 	/**
@@ -427,11 +435,11 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		if (beanClassObject == null) {
 			throw new IllegalStateException("No bean class specified on bean definition");
 		}
-		if (!(beanClassObject instanceof Class<?> clazz)) {
+		if (!(beanClassObject instanceof Class)) {
 			throw new IllegalStateException(
 					"Bean class name [" + beanClassObject + "] has not been resolved into an actual Class");
 		}
-		return clazz;
+		return (Class<?>) beanClassObject;
 	}
 
 	/**
@@ -886,7 +894,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	}
 
 	/**
-	 * Return if there are property values defined for this bean.
+	 * Return if there are property values values defined for this bean.
 	 * @since 5.0.2
 	 */
 	@Override
@@ -919,58 +927,34 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	}
 
 	/**
-	 * Specify the names of multiple initializer methods.
-	 * <p>The default is {@code null} in which case there are no initializer methods.
-	 * @since 6.0
-	 * @see #setInitMethodName
-	 */
-	public void setInitMethodNames(@Nullable String... initMethodNames) {
-		this.initMethodNames = initMethodNames;
-	}
-
-	/**
-	 * Return the names of the initializer methods.
-	 * @since 6.0
-	 */
-	@Nullable
-	public String[] getInitMethodNames() {
-		return this.initMethodNames;
-	}
-
-	/**
 	 * Set the name of the initializer method.
 	 * <p>The default is {@code null} in which case there is no initializer method.
-	 * @see #setInitMethodNames
 	 */
 	@Override
 	public void setInitMethodName(@Nullable String initMethodName) {
-		this.initMethodNames = (initMethodName != null ? new String[] {initMethodName} : null);
+		this.initMethodName = initMethodName;
 	}
 
 	/**
-	 * Return the name of the initializer method (the first one in case of multiple methods).
+	 * Return the name of the initializer method.
 	 */
 	@Override
 	@Nullable
 	public String getInitMethodName() {
-		return (!ObjectUtils.isEmpty(this.initMethodNames) ? this.initMethodNames[0] : null);
+		return this.initMethodName;
 	}
 
 	/**
-	 * Specify whether or not the configured initializer method is the default.
-	 * <p>The default value is {@code true} for a locally specified init method
-	 * but switched to {@code false} for a shared setting in a defaults section
-	 * (e.g. {@code bean init-method} versus {@code beans default-init-method}
-	 * level in XML) which might not apply to all contained bean definitions.
+	 * Specify whether or not the configured init method is the default.
+	 * <p>The default value is {@code false}.
 	 * @see #setInitMethodName
-	 * @see #applyDefaults
 	 */
 	public void setEnforceInitMethod(boolean enforceInitMethod) {
 		this.enforceInitMethod = enforceInitMethod;
 	}
 
 	/**
-	 * Indicate whether the configured initializer method is the default.
+	 * Indicate whether the configured init method is the default.
 	 * @see #getInitMethodName()
 	 */
 	public boolean isEnforceInitMethod() {
@@ -978,51 +962,27 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	}
 
 	/**
-	 * Specify the names of multiple destroy methods.
-	 * <p>The default is {@code null} in which case there are no destroy methods.
-	 * @since 6.0
-	 * @see #setDestroyMethodName
-	 */
-	public void setDestroyMethodNames(@Nullable String... destroyMethodNames) {
-		this.destroyMethodNames = destroyMethodNames;
-	}
-
-	/**
-	 * Return the names of the destroy methods.
-	 * @since 6.0
-	 */
-	@Nullable
-	public String[] getDestroyMethodNames() {
-		return this.destroyMethodNames;
-	}
-
-	/**
 	 * Set the name of the destroy method.
 	 * <p>The default is {@code null} in which case there is no destroy method.
-	 * @see #setDestroyMethodNames
 	 */
 	@Override
 	public void setDestroyMethodName(@Nullable String destroyMethodName) {
-		this.destroyMethodNames = (destroyMethodName != null ? new String[] {destroyMethodName} : null);
+		this.destroyMethodName = destroyMethodName;
 	}
 
 	/**
-	 * Return the name of the destroy method (the first one in case of multiple methods).
+	 * Return the name of the destroy method.
 	 */
 	@Override
 	@Nullable
 	public String getDestroyMethodName() {
-		return (!ObjectUtils.isEmpty(this.destroyMethodNames) ? this.destroyMethodNames[0] : null);
+		return this.destroyMethodName;
 	}
 
 	/**
 	 * Specify whether or not the configured destroy method is the default.
-	 * <p>The default value is {@code true} for a locally specified destroy method
-	 * but switched to {@code false} for a shared setting in a defaults section
-	 * (e.g. {@code bean destroy-method} versus {@code beans default-destroy-method}
-	 * level in XML) which might not apply to all contained bean definitions.
+	 * <p>The default value is {@code false}.
 	 * @see #setDestroyMethodName
-	 * @see #applyDefaults
 	 */
 	public void setEnforceDestroyMethod(boolean enforceDestroyMethod) {
 		this.enforceDestroyMethod = enforceDestroyMethod;
@@ -1030,7 +990,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	/**
 	 * Indicate whether the configured destroy method is the default.
-	 * @see #getDestroyMethodName()
+	 * @see #getDestroyMethodName
 	 */
 	public boolean isEnforceDestroyMethod() {
 		return this.enforceDestroyMethod;
@@ -1136,7 +1096,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	@Override
 	@Nullable
 	public BeanDefinition getOriginatingBeanDefinition() {
-		return (this.resource instanceof BeanDefinitionResource bdr ? bdr.getBeanDefinition() : null);
+		return (this.resource instanceof BeanDefinitionResource ?
+				((BeanDefinitionResource) this.resource).getBeanDefinition() : null);
 	}
 
 	/**
@@ -1209,9 +1170,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof AbstractBeanDefinition that)) {
+		if (!(other instanceof AbstractBeanDefinition)) {
 			return false;
 		}
+		AbstractBeanDefinition that = (AbstractBeanDefinition) other;
 		return (ObjectUtils.nullSafeEquals(getBeanClassName(), that.getBeanClassName()) &&
 				ObjectUtils.nullSafeEquals(this.scope, that.scope) &&
 				this.abstractFlag == that.abstractFlag &&
@@ -1224,44 +1186,26 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 				this.primary == that.primary &&
 				this.nonPublicAccessAllowed == that.nonPublicAccessAllowed &&
 				this.lenientConstructorResolution == that.lenientConstructorResolution &&
-				equalsConstructorArgumentValues(that) &&
-				equalsPropertyValues(that) &&
+				ObjectUtils.nullSafeEquals(this.constructorArgumentValues, that.constructorArgumentValues) &&
+				ObjectUtils.nullSafeEquals(this.propertyValues, that.propertyValues) &&
 				ObjectUtils.nullSafeEquals(this.methodOverrides, that.methodOverrides) &&
 				ObjectUtils.nullSafeEquals(this.factoryBeanName, that.factoryBeanName) &&
 				ObjectUtils.nullSafeEquals(this.factoryMethodName, that.factoryMethodName) &&
-				ObjectUtils.nullSafeEquals(this.initMethodNames, that.initMethodNames) &&
+				ObjectUtils.nullSafeEquals(this.initMethodName, that.initMethodName) &&
 				this.enforceInitMethod == that.enforceInitMethod &&
-				ObjectUtils.nullSafeEquals(this.destroyMethodNames, that.destroyMethodNames) &&
+				ObjectUtils.nullSafeEquals(this.destroyMethodName, that.destroyMethodName) &&
 				this.enforceDestroyMethod == that.enforceDestroyMethod &&
 				this.synthetic == that.synthetic &&
 				this.role == that.role &&
 				super.equals(other));
 	}
 
-	private boolean equalsConstructorArgumentValues(AbstractBeanDefinition other) {
-		if (!hasConstructorArgumentValues()) {
-			return !other.hasConstructorArgumentValues();
-		}
-		return ObjectUtils.nullSafeEquals(this.constructorArgumentValues, other.constructorArgumentValues);
-	}
-
-	private boolean equalsPropertyValues(AbstractBeanDefinition other) {
-		if (!hasPropertyValues()) {
-			return !other.hasPropertyValues();
-		}
-		return ObjectUtils.nullSafeEquals(this.propertyValues, other.propertyValues);
-	}
-
 	@Override
 	public int hashCode() {
 		int hashCode = ObjectUtils.nullSafeHashCode(getBeanClassName());
 		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.scope);
-		if (hasConstructorArgumentValues()) {
-			hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.constructorArgumentValues);
-		}
-		if (hasPropertyValues()) {
-			hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.propertyValues);
-		}
+		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.constructorArgumentValues);
+		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.propertyValues);
 		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.factoryBeanName);
 		hashCode = 29 * hashCode + ObjectUtils.nullSafeHashCode(this.factoryMethodName);
 		hashCode = 29 * hashCode + super.hashCode();
@@ -1271,7 +1215,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("class [");
-		sb.append(getBeanClassName()).append(']');
+		sb.append(getBeanClassName()).append("]");
 		sb.append("; scope=").append(this.scope);
 		sb.append("; abstract=").append(this.abstractFlag);
 		sb.append("; lazyInit=").append(this.lazyInit);
@@ -1281,8 +1225,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		sb.append("; primary=").append(this.primary);
 		sb.append("; factoryBeanName=").append(this.factoryBeanName);
 		sb.append("; factoryMethodName=").append(this.factoryMethodName);
-		sb.append("; initMethodNames=").append(Arrays.toString(this.initMethodNames));
-		sb.append("; destroyMethodNames=").append(Arrays.toString(this.destroyMethodNames));
+		sb.append("; initMethodName=").append(this.initMethodName);
+		sb.append("; destroyMethodName=").append(this.destroyMethodName);
 		if (this.resource != null) {
 			sb.append("; defined in ").append(this.resource.getDescription());
 		}

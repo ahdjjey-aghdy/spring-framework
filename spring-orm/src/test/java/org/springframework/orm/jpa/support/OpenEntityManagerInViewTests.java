@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
-import jakarta.servlet.FilterChain;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
+import javax.servlet.FilterChain;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -350,7 +351,7 @@ public class OpenEntityManagerInViewTests {
 		final OpenEntityManagerInViewFilter filter2 = new OpenEntityManagerInViewFilter();
 		filter2.init(filterConfig2);
 
-		final AtomicInteger count = new AtomicInteger();
+		final AtomicInteger count = new AtomicInteger(0);
 
 		final FilterChain filterChain = (servletRequest, servletResponse) -> {
 			assertThat(TransactionSynchronizationManager.hasResource(factory)).isTrue();
@@ -358,7 +359,7 @@ public class OpenEntityManagerInViewTests {
 			count.incrementAndGet();
 		};
 
-		final AtomicInteger count2 = new AtomicInteger();
+		final AtomicInteger count2 = new AtomicInteger(0);
 
 		final FilterChain filterChain2 = (servletRequest, servletResponse) -> {
 			assertThat(TransactionSynchronizationManager.hasResource(factory2)).isTrue();
@@ -418,7 +419,6 @@ public class OpenEntityManagerInViewTests {
 		private final CountDownLatch latch = new CountDownLatch(1);
 
 		@Override
-		@SuppressWarnings("deprecation")
 		public void execute(Runnable task, long startTimeout) {
 			Runnable decoratedTask = () -> {
 				try {

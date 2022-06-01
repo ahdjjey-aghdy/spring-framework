@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package org.springframework.test.web.servlet.samples.context;
 
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletContext;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,15 +42,16 @@ import org.springframework.web.servlet.config.annotation.DefaultServletHandlerCo
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.ViewResolverRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.view.tiles3.TilesConfigurer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,7 +61,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author Rossen Stoyanchev
  * @author Sam Brannen
  * @author Sebastien Deleuze
- * @author Michał Rowicki
  */
 @ExtendWith(SpringExtension.class)
 @WebAppConfiguration("classpath:META-INF/web-resources")
@@ -92,38 +93,16 @@ public class JavaConfigTests {
 	public void person() throws Exception {
 		this.mockMvc.perform(get("/person/5").accept(MediaType.APPLICATION_JSON))
 			.andDo(print())
-			.andExpectAll(
-				status().isOk(),
-				request().asyncNotStarted(),
-				content().string("{\"name\":\"Joe\",\"someDouble\":0.0,\"someBoolean\":false}"),
-				jsonPath("$.name").value("Joe")
-			);
+			.andExpect(status().isOk())
+			.andExpect(request().asyncNotStarted())
+			.andExpect(content().string("{\"name\":\"Joe\",\"someDouble\":0.0,\"someBoolean\":false}"));
 	}
 
 	@Test
-	public void andExpectAllWithOneFailure() {
-		assertThatExceptionOfType(AssertionError.class)
-			.isThrownBy(() -> this.mockMvc.perform(get("/person/5").accept(MediaType.APPLICATION_JSON))
-					.andExpectAll(
-						status().isBadGateway(),
-						request().asyncNotStarted(),
-						jsonPath("$.name").value("Joe")))
-			.withMessage("Status expected:<502> but was:<200>")
-			.satisfies(error -> assertThat(error).hasNoSuppressedExceptions());
-	}
-
-	@Test
-	public void andExpectAllWithMultipleFailures() {
-		assertThatExceptionOfType(AssertionError.class).isThrownBy(() ->
-			this.mockMvc.perform(get("/person/5").accept(MediaType.APPLICATION_JSON))
-				.andExpectAll(
-					status().isBadGateway(),
-					request().asyncNotStarted(),
-					jsonPath("$.name").value("Joe"),
-					jsonPath("$.name").value("Jane")
-				))
-			.withMessage("Multiple Exceptions (2):\nStatus expected:<502> but was:<200>\nJSON path \"$.name\" expected:<Jane> but was:<Joe>")
-			.satisfies(error -> assertThat(error.getSuppressed()).hasSize(2));
+	public void tilesDefinitions() throws Exception {
+		this.mockMvc.perform(get("/"))
+			.andExpect(status().isOk())
+			.andExpect(forwardedUrl("/WEB-INF/layouts/standardLayout.jsp"));
 	}
 
 	/**
@@ -190,6 +169,18 @@ public class JavaConfigTests {
 		@Override
 		public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
 			configurer.enable();
+		}
+
+		@Override
+		public void configureViewResolvers(ViewResolverRegistry registry) {
+			registry.tiles();
+		}
+
+		@Bean
+		public TilesConfigurer tilesConfigurer() {
+			TilesConfigurer configurer = new TilesConfigurer();
+			configurer.setDefinitions("/WEB-INF/**/tiles.xml");
+			return configurer;
 		}
 	}
 

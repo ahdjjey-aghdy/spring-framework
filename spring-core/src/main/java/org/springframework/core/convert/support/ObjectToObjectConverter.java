@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,7 +92,8 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 		Member member = getValidatedMember(targetClass, sourceClass);
 
 		try {
-			if (member instanceof Method method) {
+			if (member instanceof Method) {
+				Method method = (Method) member;
 				ReflectionUtils.makeAccessible(method);
 				if (!Modifier.isStatic(method.getModifiers())) {
 					return method.invoke(source);
@@ -101,9 +102,10 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 					return method.invoke(null, source);
 				}
 			}
-			else if (member instanceof Constructor<?> constructor) {
-				ReflectionUtils.makeAccessible(constructor);
-				return constructor.newInstance(source);
+			else if (member instanceof Constructor) {
+				Constructor<?> ctor = (Constructor<?>) member;
+				ReflectionUtils.makeAccessible(ctor);
+				return ctor.newInstance(source);
 			}
 		}
 		catch (InvocationTargetException ex) {
@@ -150,13 +152,15 @@ final class ObjectToObjectConverter implements ConditionalGenericConverter {
 	}
 
 	private static boolean isApplicable(Member member, Class<?> sourceClass) {
-		if (member instanceof Method method) {
+		if (member instanceof Method) {
+			Method method = (Method) member;
 			return (!Modifier.isStatic(method.getModifiers()) ?
 					ClassUtils.isAssignable(method.getDeclaringClass(), sourceClass) :
 					method.getParameterTypes()[0] == sourceClass);
 		}
-		else if (member instanceof Constructor<?> constructor) {
-			return (constructor.getParameterTypes()[0] == sourceClass);
+		else if (member instanceof Constructor) {
+			Constructor<?> ctor = (Constructor<?>) member;
+			return (ctor.getParameterTypes()[0] == sourceClass);
 		}
 		else {
 			return false;

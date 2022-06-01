@@ -18,8 +18,9 @@ package org.springframework.web.servlet.tags.form;
 
 import java.io.Writer;
 
-import jakarta.servlet.jsp.JspException;
-import jakarta.servlet.jsp.tagext.Tag;
+import javax.servlet.jsp.JspException;
+import javax.servlet.jsp.tagext.Tag;
+
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.testfixture.beans.TestBean;
@@ -55,7 +56,7 @@ public class InputTagTests extends AbstractFormTagTests {
 		// set up test data
 		this.rob = new TestBean();
 		this.rob.setName("Rob");
-		this.rob.setMyFloat(Float.valueOf(12.34f));
+		this.rob.setMyFloat(new Float(12.34));
 
 		TestBean sally = new TestBean();
 		sally.setName("Sally");

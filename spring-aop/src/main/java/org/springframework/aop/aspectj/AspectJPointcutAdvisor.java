@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package org.springframework.aop.aspectj;
 
 import org.aopalliance.aop.Advice;
-
 import org.springframework.aop.Pointcut;
 import org.springframework.aop.PointcutAdvisor;
 import org.springframework.core.Ordered;
@@ -97,9 +96,10 @@ public class AspectJPointcutAdvisor implements PointcutAdvisor, Ordered {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof AspectJPointcutAdvisor otherAdvisor)) {
+		if (!(other instanceof AspectJPointcutAdvisor)) {
 			return false;
 		}
+		AspectJPointcutAdvisor otherAdvisor = (AspectJPointcutAdvisor) other;
 		return this.advice.equals(otherAdvisor.advice);
 	}
 

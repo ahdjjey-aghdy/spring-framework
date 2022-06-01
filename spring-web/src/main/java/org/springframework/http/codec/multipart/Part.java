@@ -17,7 +17,6 @@
 package org.springframework.http.codec.multipart;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
@@ -57,14 +56,5 @@ public interface Part {
 	 * more easily via {@link FormFieldPart#value()}.
 	 */
 	Flux<DataBuffer> content();
-
-	/**
-	 * Return a mono that, when subscribed to, deletes the underlying storage
-	 * for this part.
-	 * @since 5.3.13
-	 */
-	default Mono<Void> delete() {
-		return Mono.empty();
-	}
 
 }

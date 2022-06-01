@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,14 @@
 
 package org.springframework.aop.interceptor;
 
-import java.io.Serializable;
-
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.aop.support.AopUtils;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
+
+import java.io.Serializable;
 
 /**
  * Base {@code MethodInterceptor} implementation for tracing.
@@ -152,7 +150,6 @@ public abstract class AbstractTraceInterceptor implements MethodInterceptor, Ser
 		}
 		else {
 			Object target = invocation.getThis();
-			Assert.state(target != null, "Target must not be null");
 			return LogFactory.getLog(getClassForLogging(target));
 		}
 	}

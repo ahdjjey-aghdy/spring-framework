@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
+
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.ConversionNotSupportedException;
@@ -31,7 +31,6 @@ import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -39,7 +38,6 @@ import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindException;
-import org.springframework.validation.MapBindingResult;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -63,6 +61,7 @@ import org.springframework.web.testfixture.servlet.MockHttpServletResponse;
 import org.springframework.web.testfixture.servlet.MockServletConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Test fixture for {@link ResponseEntityExceptionHandler}.
@@ -82,21 +81,20 @@ public class ResponseEntityExceptionHandlerTests {
 	private WebRequest request = new ServletWebRequest(this.servletRequest, this.servletResponse);
 
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void supportsAllDefaultHandlerExceptionResolverExceptionTypes() throws Exception {
+		Class<ResponseEntityExceptionHandler> clazz = ResponseEntityExceptionHandler.class;
+		Method handleExceptionMethod = clazz.getMethod("handleException", Exception.class, WebRequest.class);
+		ExceptionHandler annotation = handleExceptionMethod.getAnnotation(ExceptionHandler.class);
+		List<Class<?>> exceptionTypes = Arrays.asList(annotation.value());
 
-		ExceptionHandler annotation = ResponseEntityExceptionHandler.class
-				.getMethod("handleException", Exception.class, WebRequest.class)
-				.getAnnotation(ExceptionHandler.class);
-
-		Arrays.stream(DefaultHandlerExceptionResolver.class.getDeclaredMethods())
-				.filter(method -> method.getName().startsWith("handle") && (method.getParameterCount() == 4))
-				.filter(method -> !method.getName().equals("handleErrorResponse"))
-				.map(method -> method.getParameterTypes()[0])
-				.forEach(exceptionType -> assertThat(annotation.value())
-						.as("@ExceptionHandler is missing declaration for " + exceptionType.getName())
-						.contains((Class<Exception>) exceptionType));
+		for (Method method : DefaultHandlerExceptionResolver.class.getDeclaredMethods()) {
+			Class<?>[] paramTypes = method.getParameterTypes();
+			if (method.getName().startsWith("handle") && (paramTypes.length == 4)) {
+				String name = paramTypes[0].getSimpleName();
+				assertThat(exceptionTypes.contains(paramTypes[0])).as("@ExceptionHandler is missing " + name).isTrue();
+			}
+		}
 	}
 
 	@Test
@@ -105,7 +103,7 @@ public class ResponseEntityExceptionHandlerTests {
 		Exception ex = new HttpRequestMethodNotSupportedException("GET", supported);
 
 		ResponseEntity<Object> responseEntity = testException(ex);
-		assertThat(responseEntity.getHeaders().getAllow()).isEqualTo(Set.of(HttpMethod.POST, HttpMethod.DELETE));
+		assertThat(responseEntity.getHeaders().getAllow()).isEqualTo(EnumSet.of(HttpMethod.POST, HttpMethod.DELETE));
 	}
 
 	@Test
@@ -115,20 +113,6 @@ public class ResponseEntityExceptionHandlerTests {
 
 		ResponseEntity<Object> responseEntity = testException(ex);
 		assertThat(responseEntity.getHeaders().getAccept()).isEqualTo(acceptable);
-		assertThat(responseEntity.getHeaders().getAcceptPatch()).isEmpty();
-	}
-
-	@Test
-	public void patchHttpMediaTypeNotSupported() {
-		this.servletRequest = new MockHttpServletRequest("PATCH", "/");
-		this.request = new ServletWebRequest(this.servletRequest, this.servletResponse);
-
-		List<MediaType> acceptable = Arrays.asList(MediaType.APPLICATION_ATOM_XML, MediaType.APPLICATION_XML);
-		Exception ex = new HttpMediaTypeNotSupportedException(MediaType.APPLICATION_JSON, acceptable, HttpMethod.PATCH);
-
-		ResponseEntity<Object> responseEntity = testException(ex);
-		assertThat(responseEntity.getHeaders().getAccept()).isEqualTo(acceptable);
-		assertThat(responseEntity.getHeaders().getAcceptPatch()).isEqualTo(acceptable);
 	}
 
 	@Test
@@ -183,10 +167,8 @@ public class ResponseEntityExceptionHandlerTests {
 	}
 
 	@Test
-	public void methodArgumentNotValid() throws Exception {
-		Exception ex = new MethodArgumentNotValidException(
-				new MethodParameter(getClass().getDeclaredMethod("handle", String.class), 0),
-				new MapBindingResult(Collections.emptyMap(), "name"));
+	public void methodArgumentNotValid() {
+		Exception ex = mock(MethodArgumentNotValidException.class);
 		testException(ex);
 	}
 
@@ -291,7 +273,7 @@ public class ResponseEntityExceptionHandlerTests {
 
 			// SPR-9653
 			if (HttpStatus.INTERNAL_SERVER_ERROR.equals(responseEntity.getStatusCode())) {
-				assertThat(this.servletRequest.getAttribute("jakarta.servlet.error.exception")).isSameAs(ex);
+				assertThat(this.servletRequest.getAttribute("javax.servlet.error.exception")).isSameAs(ex);
 			}
 
 			this.defaultExceptionResolver.resolveException(this.servletRequest, this.servletResponse, null, ex);
@@ -331,9 +313,8 @@ public class ResponseEntityExceptionHandlerTests {
 
 		@Override
 		protected ResponseEntity<Object> handleServletRequestBindingException(
-				ServletRequestBindingException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+				ServletRequestBindingException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
 
-			headers = new HttpHeaders();
 			headers.set("someHeader", "someHeaderValue");
 			return handleExceptionInternal(ex, "error content", headers, status, request);
 		}

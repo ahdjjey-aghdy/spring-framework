@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,19 +42,15 @@ public class PatternsRequestConditionTests {
 	@Test
 	public void prependNonEmptyPatternsOnly() {
 		PatternsRequestCondition c = createPatternsCondition("");
-		assertThat(c.getPatterns().iterator().next().getPatternString())
-				.as("Do not prepend empty patterns (SPR-8255)")
-				.isEqualTo("");
+		assertThat(c.getPatterns().iterator().next().getPatternString()).as("Do not prepend empty patterns (SPR-8255)").isEqualTo("");
 	}
 
 	@Test
 	public void combineEmptySets() {
 		PatternsRequestCondition c1 = new PatternsRequestCondition();
 		PatternsRequestCondition c2 = new PatternsRequestCondition();
-		PatternsRequestCondition c3 = c1.combine(c2);
 
-		assertThat(c3).isSameAs(c1);
-		assertThat(c1.getPatterns()).isSameAs(c2.getPatterns()).containsExactly(this.parser.parse(""));
+		assertThat(c1.combine(c2)).isEqualTo(createPatternsCondition());
 	}
 
 	@Test
@@ -79,7 +75,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void matchDirectPath() {
+	public void matchDirectPath() throws Exception {
 		PatternsRequestCondition condition = createPatternsCondition("/foo");
 		MockServerWebExchange exchange = MockServerWebExchange.from(get("/foo"));
 		PatternsRequestCondition match = condition.getMatchingCondition(exchange);
@@ -88,7 +84,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void matchPattern() {
+	public void matchPattern() throws Exception {
 		PatternsRequestCondition condition = createPatternsCondition("/foo/*");
 		MockServerWebExchange exchange = MockServerWebExchange.from(get("/foo/bar"));
 		PatternsRequestCondition match = condition.getMatchingCondition(exchange);
@@ -97,7 +93,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void matchSortPatterns() {
+	public void matchSortPatterns() throws Exception {
 		PatternsRequestCondition condition = createPatternsCondition("/*/*", "/foo/bar", "/foo/*");
 		MockServerWebExchange exchange = MockServerWebExchange.from(get("/foo/bar"));
 		PatternsRequestCondition match = condition.getMatchingCondition(exchange);
@@ -107,24 +103,20 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void matchTrailingSlash() {
+	public void matchTrailingSlash() throws Exception {
 		MockServerWebExchange exchange = MockServerWebExchange.from(get("/foo/"));
 
 		PatternsRequestCondition condition = createPatternsCondition("/foo");
 		PatternsRequestCondition match = condition.getMatchingCondition(exchange);
 
 		assertThat(match).isNotNull();
-		assertThat(match.getPatterns().iterator().next().getPatternString())
-				.as("Should match by default")
-				.isEqualTo("/foo");
+		assertThat(match.getPatterns().iterator().next().getPatternString()).as("Should match by default").isEqualTo("/foo");
 
 		condition = createPatternsCondition("/foo");
 		match = condition.getMatchingCondition(exchange);
 
 		assertThat(match).isNotNull();
-		assertThat(match.getPatterns().iterator().next().getPatternString())
-				.as("Trailing slash should be insensitive to useSuffixPatternMatch settings (SPR-6164, SPR-5636)")
-				.isEqualTo("/foo");
+		assertThat(match.getPatterns().iterator().next().getPatternString()).as("Trailing slash should be insensitive to useSuffixPatternMatch settings (SPR-6164, SPR-5636)").isEqualTo("/foo");
 
 		PathPatternParser parser = new PathPatternParser();
 		parser.setMatchOptionalTrailingSeparator(false);
@@ -135,7 +127,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void matchPatternContainsExtension() {
+	public void matchPatternContainsExtension() throws Exception {
 		PatternsRequestCondition condition = createPatternsCondition("/foo.jpg");
 		MockServerWebExchange exchange = MockServerWebExchange.from(get("/foo.html"));
 		PatternsRequestCondition match = condition.getMatchingCondition(exchange);
@@ -146,16 +138,18 @@ public class PatternsRequestConditionTests {
 	@Test // gh-22543
 	public void matchWithEmptyPatterns() {
 		PatternsRequestCondition condition = new PatternsRequestCondition();
+		assertThat(condition).isEqualTo(new PatternsRequestCondition(this.parser.parse("")));
 		assertThat(condition.getMatchingCondition(MockServerWebExchange.from(get("")))).isNotNull();
 		assertThat(condition.getMatchingCondition(MockServerWebExchange.from(get("/anything")))).isNull();
 
 		condition = condition.combine(new PatternsRequestCondition());
+		assertThat(condition).isEqualTo(new PatternsRequestCondition(this.parser.parse("")));
 		assertThat(condition.getMatchingCondition(MockServerWebExchange.from(get("")))).isNotNull();
 		assertThat(condition.getMatchingCondition(MockServerWebExchange.from(get("/anything")))).isNull();
 	}
 
 	@Test
-	public void compareToConsistentWithEquals() {
+	public void compareToConsistentWithEquals() throws Exception {
 		PatternsRequestCondition c1 = createPatternsCondition("/foo*");
 		PatternsRequestCondition c2 = createPatternsCondition("/foo*");
 
@@ -163,7 +157,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void equallyMatchingPatternsAreBothPresent() {
+	public void equallyMatchingPatternsAreBothPresent() throws Exception {
 		PatternsRequestCondition c = createPatternsCondition("/a", "/b");
 		assertThat(c.getPatterns().size()).isEqualTo(2);
 		Iterator<PathPattern> itr = c.getPatterns().iterator();
@@ -172,7 +166,7 @@ public class PatternsRequestConditionTests {
 	}
 
 	@Test
-	public void comparePatternSpecificity() {
+	public void comparePatternSpecificity() throws Exception {
 		ServerWebExchange exchange = MockServerWebExchange.from(get("/foo"));
 
 		PatternsRequestCondition c1 = createPatternsCondition("/fo*");
@@ -183,13 +177,11 @@ public class PatternsRequestConditionTests {
 		c1 = createPatternsCondition("/fo*");
 		c2 = createPatternsCondition("/*oo");
 
-		assertThat(c1.compareTo(c2, exchange))
-				.as("Patterns are equally specific even if not the same")
-				.isEqualTo(0);
+		assertThat(c1.compareTo(c2, exchange)).as("Patterns are equally specific even if not the same").isEqualTo(0);
 	}
 
 	@Test
-	public void compareNumberOfMatchingPatterns() {
+	public void compareNumberOfMatchingPatterns() throws Exception {
 		ServerWebExchange exchange = MockServerWebExchange.from(get("/foo.html"));
 
 		PatternsRequestCondition c1 = createPatternsCondition("/foo.*", "/foo.jpeg");
@@ -205,7 +197,7 @@ public class PatternsRequestConditionTests {
 	private PatternsRequestCondition createPatternsCondition(String... patterns) {
 		return new PatternsRequestCondition(Arrays
 				.stream(patterns)
-				.map(this.parser::parse)
+				.map(rawPattern -> this.parser.parse(rawPattern))
 				.collect(Collectors.toList()));
 	}
 

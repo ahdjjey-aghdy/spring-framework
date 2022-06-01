@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,7 @@
 
 package org.springframework.cache.annotation;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.Advisor;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aop.support.AopUtils;
@@ -33,8 +29,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatException;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Integration tests for the @EnableCaching annotation.
@@ -62,7 +61,8 @@ class EnableCachingIntegrationTests {
 		// this test is a bit fragile, but gets the job done, proving that an
 		// attempt was made to look up the AJ aspect. It's due to classpath issues
 		// in .integration-tests that it's not found.
-		assertThatException().isThrownBy(ctx::refresh)
+		assertThatExceptionOfType(Exception.class).isThrownBy(
+				ctx::refresh)
 			.withMessageContaining("AspectJCachingConfiguration");
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
 
 package org.springframework.aop.support;
 
-import java.io.Serializable;
-
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+
+import java.io.Serializable;
 
 /**
  * Convenient class for building up pointcuts.
@@ -188,9 +188,10 @@ public class ComposablePointcut implements Pointcut, Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof ComposablePointcut otherPointcut)) {
+		if (!(other instanceof ComposablePointcut)) {
 			return false;
 		}
+		ComposablePointcut otherPointcut = (ComposablePointcut) other;
 		return (this.classFilter.equals(otherPointcut.classFilter) &&
 				this.methodMatcher.equals(otherPointcut.methodMatcher));
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -198,7 +198,8 @@ abstract class AutowireUtils {
 				Type methodParameterType = methodParameterTypes[i];
 				Object arg = args[i];
 				if (methodParameterType.equals(genericReturnType)) {
-					if (arg instanceof TypedStringValue typedValue) {
+					if (arg instanceof TypedStringValue) {
+						TypedStringValue typedValue = ((TypedStringValue) arg);
 						if (typedValue.hasTargetType()) {
 							return typedValue.getTargetType();
 						}
@@ -219,7 +220,8 @@ abstract class AutowireUtils {
 					}
 					return method.getReturnType();
 				}
-				else if (methodParameterType instanceof ParameterizedType parameterizedType) {
+				else if (methodParameterType instanceof ParameterizedType) {
+					ParameterizedType parameterizedType = (ParameterizedType) methodParameterType;
 					Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 					for (Type typeArg : actualTypeArguments) {
 						if (typeArg.equals(genericReturnType)) {
@@ -231,7 +233,8 @@ abstract class AutowireUtils {
 								if (arg instanceof String) {
 									className = (String) arg;
 								}
-								else if (arg instanceof TypedStringValue typedValue) {
+								else if (arg instanceof TypedStringValue) {
+									TypedStringValue typedValue = ((TypedStringValue) arg);
 									String targetTypeName = typedValue.getTargetTypeName();
 									if (targetTypeName == null || Class.class.getName().equals(targetTypeName)) {
 										className = typedValue.getValue();
@@ -269,21 +272,23 @@ abstract class AutowireUtils {
 
 		private final ObjectFactory<?> objectFactory;
 
-		ObjectFactoryDelegatingInvocationHandler(ObjectFactory<?> objectFactory) {
+		public ObjectFactoryDelegatingInvocationHandler(ObjectFactory<?> objectFactory) {
 			this.objectFactory = objectFactory;
 		}
 
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			switch (method.getName()) {
-				case "equals":
-					// Only consider equal when proxies are identical.
-					return (proxy == args[0]);
-				case "hashCode":
-					// Use hashCode of proxy.
-					return System.identityHashCode(proxy);
-				case "toString":
-					return this.objectFactory.toString();
+			String methodName = method.getName();
+			if (methodName.equals("equals")) {
+				// Only consider equal when proxies are identical.
+				return (proxy == args[0]);
+			}
+			else if (methodName.equals("hashCode")) {
+				// Use hashCode of proxy.
+				return System.identityHashCode(proxy);
+			}
+			else if (methodName.equals("toString")) {
+				return this.objectFactory.toString();
 			}
 			try {
 				return method.invoke(this.objectFactory.getObject(), args);

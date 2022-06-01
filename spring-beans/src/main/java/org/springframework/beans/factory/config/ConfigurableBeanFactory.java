@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.beans.factory.config;
 
 import java.beans.PropertyEditor;
+import java.security.AccessControlContext;
 
 import org.springframework.beans.PropertyEditorRegistrar;
 import org.springframework.beans.PropertyEditorRegistry;
@@ -26,7 +27,6 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.HierarchicalBeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.core.convert.ConversionService;
-import org.springframework.core.metrics.ApplicationStartup;
 import org.springframework.lang.Nullable;
 import org.springframework.util.StringValueResolver;
 
@@ -277,18 +277,11 @@ public interface ConfigurableBeanFactory extends HierarchicalBeanFactory, Single
 	Scope getRegisteredScope(String scopeName);
 
 	/**
-	 * Set the {@code ApplicationStartup} for this bean factory.
-	 * <p>This allows the application context to record metrics during application startup.
-	 * @param applicationStartup the new application startup
-	 * @since 5.3
+	 * Provides a security access control context relevant to this factory.
+	 * @return the applicable AccessControlContext (never {@code null})
+	 * @since 3.0
 	 */
-	void setApplicationStartup(ApplicationStartup applicationStartup);
-
-	/**
-	 * Return the {@code ApplicationStartup} for this bean factory.
-	 * @since 5.3
-	 */
-	ApplicationStartup getApplicationStartup();
+	AccessControlContext getAccessControlContext();
 
 	/**
 	 * Copy all relevant configuration from the given other factory.

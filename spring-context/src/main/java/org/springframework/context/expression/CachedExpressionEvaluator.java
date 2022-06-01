@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ public abstract class CachedExpressionEvaluator {
 
 	/**
 	 * Return the {@link Expression} for the specified SpEL value
-	 * <p>{@link #parseExpression(String) Parse the expression} if it hasn't been already.
+	 * <p>Parse the expression if it hasn't been already.
 	 * @param cache the cache to use
 	 * @param elementKey the element on which the expression is defined
 	 * @param expression the expression to parse
@@ -86,19 +86,10 @@ public abstract class CachedExpressionEvaluator {
 		ExpressionKey expressionKey = createKey(elementKey, expression);
 		Expression expr = cache.get(expressionKey);
 		if (expr == null) {
-			expr = parseExpression(expression);
+			expr = getParser().parseExpression(expression);
 			cache.put(expressionKey, expr);
 		}
 		return expr;
-	}
-
-	/**
-	 * Parse the specified {@code expression}.
-	 * @param expression the expression to parse
-	 * @since 5.3.13
-	 */
-	protected Expression parseExpression(String expression) {
-		return getParser().parseExpression(expression);
 	}
 
 	private ExpressionKey createKey(AnnotatedElementKey elementKey, String expression) {
@@ -127,9 +118,10 @@ public abstract class CachedExpressionEvaluator {
 			if (this == other) {
 				return true;
 			}
-			if (!(other instanceof ExpressionKey otherKey)) {
+			if (!(other instanceof ExpressionKey)) {
 				return false;
 			}
+			ExpressionKey otherKey = (ExpressionKey) other;
 			return (this.element.equals(otherKey.element) &&
 					ObjectUtils.nullSafeEquals(this.expression, otherKey.expression));
 		}

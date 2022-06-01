@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,15 +88,7 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	@Override
 	public boolean isReadable() {
 		try {
-			return checkReadable(getURL());
-		}
-		catch (IOException ex) {
-			return false;
-		}
-	}
-
-	boolean checkReadable(URL url) {
-		try {
+			URL url = getURL();
 			if (ResourceUtils.isFileURL(url)) {
 				// Proceed with file system resolution
 				File file = getFile();
@@ -106,7 +98,8 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 				// Try InputStream resolution for jar resources
 				URLConnection con = url.openConnection();
 				customizeConnection(con);
-				if (con instanceof HttpURLConnection httpCon) {
+				if (con instanceof HttpURLConnection) {
+					HttpURLConnection httpCon = (HttpURLConnection) con;
 					int code = httpCon.getResponseCode();
 					if (code != HttpURLConnection.HTTP_OK) {
 						httpCon.disconnect();
@@ -181,7 +174,8 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	}
 
 	/**
-	 * Determine whether the given {@link URI} represents a file in a file system.
+	 * This implementation returns a File reference for the given URI-identified
+	 * resource, provided that it refers to a file in the file system.
 	 * @since 5.0
 	 * @see #getFile(URI)
 	 */
@@ -288,8 +282,8 @@ public abstract class AbstractFileResolvingResource extends AbstractResource {
 	 */
 	protected void customizeConnection(URLConnection con) throws IOException {
 		ResourceUtils.useCachesIfNecessary(con);
-		if (con instanceof HttpURLConnection httpConn) {
-			customizeConnection(httpConn);
+		if (con instanceof HttpURLConnection) {
+			customizeConnection((HttpURLConnection) con);
 		}
 	}
 

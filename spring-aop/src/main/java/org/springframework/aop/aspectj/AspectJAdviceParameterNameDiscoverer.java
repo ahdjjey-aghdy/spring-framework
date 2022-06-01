@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,14 @@
 
 package org.springframework.aop.aspectj;
 
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.weaver.tools.PointcutParser;
+import org.aspectj.weaver.tools.PointcutPrimitive;
+import org.springframework.core.ParameterNameDiscoverer;
+import org.springframework.lang.Nullable;
+import org.springframework.util.StringUtils;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -23,15 +31,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.weaver.tools.PointcutParser;
-import org.aspectj.weaver.tools.PointcutPrimitive;
-
-import org.springframework.core.ParameterNameDiscoverer;
-import org.springframework.lang.Nullable;
-import org.springframework.util.StringUtils;
 
 /**
  * {@link ParameterNameDiscoverer} implementation that tries to deduce parameter names
@@ -158,7 +157,7 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 
 	/** The pointcut expression associated with the advice, as a simple String. */
 	@Nullable
-	private final String pointcutExpression;
+	private String pointcutExpression;
 
 	private boolean raiseExceptions;
 
@@ -470,10 +469,22 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 	 */
 	@Nullable
 	private String maybeExtractVariableName(@Nullable String candidateToken) {
-		if (AspectJProxyUtils.isVariableName(candidateToken)) {
+		if (!StringUtils.hasLength(candidateToken)) {
+			return null;
+		}
+		if (Character.isJavaIdentifierStart(candidateToken.charAt(0)) &&
+				Character.isLowerCase(candidateToken.charAt(0))) {
+			char[] tokenChars = candidateToken.toCharArray();
+			for (char tokenChar : tokenChars) {
+				if (!Character.isJavaIdentifierPart(tokenChar)) {
+					return null;
+				}
+			}
 			return candidateToken;
 		}
-		return null;
+		else {
+			return null;
+		}
 	}
 
 	/**
@@ -486,7 +497,7 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 		}
 		String[] tokens = StringUtils.tokenizeToStringArray(argsSpec, ",");
 		for (int i = 0; i < tokens.length; i++) {
-			tokens[i] = tokens[i].strip();
+			tokens[i] = StringUtils.trimWhitespace(tokens[i]);
 			String varName = maybeExtractVariableName(tokens[i]);
 			if (varName != null) {
 				varNames.add(varName);
@@ -625,7 +636,7 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 			StringBuilder sb = new StringBuilder();
 			if (bodyStart >= 0 && bodyStart != (currentToken.length() - 1)) {
 				sb.append(currentToken.substring(bodyStart + 1));
-				sb.append(' ');
+				sb.append(" ");
 			}
 			numTokensConsumed++;
 			int currentIndex = startIndex + numTokensConsumed;
@@ -636,7 +647,7 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 				}
 
 				if (tokens[currentIndex].endsWith(")")) {
-					sb.append(tokens[currentIndex], 0, tokens[currentIndex].length() - 1);
+					sb.append(tokens[currentIndex].substring(0, tokens[currentIndex].length() - 1));
 					return new PointcutBody(numTokensConsumed, sb.toString().trim());
 				}
 
@@ -645,7 +656,7 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 					toAppend = toAppend.substring(1);
 				}
 				sb.append(toAppend);
-				sb.append(' ');
+				sb.append(" ");
 				currentIndex++;
 				numTokensConsumed++;
 			}
@@ -759,10 +770,10 @@ public class AspectJAdviceParameterNameDiscoverer implements ParameterNameDiscov
 	 */
 	private static class PointcutBody {
 
-		private final int numTokensConsumed;
+		private int numTokensConsumed;
 
 		@Nullable
-		private final String text;
+		private String text;
 
 		public PointcutBody(int tokens, @Nullable String text) {
 			this.numTokensConsumed = tokens;

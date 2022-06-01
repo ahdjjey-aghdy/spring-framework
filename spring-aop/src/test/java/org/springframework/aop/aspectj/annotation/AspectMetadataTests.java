@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,16 @@ package org.springframework.aop.aspectj.annotation;
 
 import org.aspectj.lang.reflect.PerClauseKind;
 import org.junit.jupiter.api.Test;
-import test.aop.PerTargetAspect;
-
 import org.springframework.aop.Pointcut;
 import org.springframework.aop.aspectj.AspectJExpressionPointcut;
-import org.springframework.aop.aspectj.annotation.AbstractAspectJAdvisorFactoryTests.ExceptionThrowingAspect;
+import org.springframework.aop.aspectj.annotation.AbstractAspectJAdvisorFactoryTests.ExceptionAspect;
+import test.aop.PerTargetAspect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
+ * @since 2.0
  * @author Rod Johnson
  * @author Chris Beams
  * @author Sam Brannen
@@ -41,7 +41,7 @@ class AspectMetadataTests {
 
 	@Test
 	void singletonAspect() {
-		AspectMetadata am = new AspectMetadata(ExceptionThrowingAspect.class, "someBean");
+		AspectMetadata am = new AspectMetadata(ExceptionAspect.class, "someBean");
 		assertThat(am.isPerThisOrPerTarget()).isFalse();
 		assertThat(am.getPerClausePointcut()).isSameAs(Pointcut.TRUE);
 		assertThat(am.getAjType().getPerClause().getKind()).isEqualTo(PerClauseKind.SINGLETON);
@@ -55,7 +55,7 @@ class AspectMetadataTests {
 		assertThat(am.getAjType().getPerClause().getKind()).isEqualTo(PerClauseKind.PERTARGET);
 		assertThat(am.getPerClausePointcut()).isInstanceOf(AspectJExpressionPointcut.class);
 		assertThat(((AspectJExpressionPointcut) am.getPerClausePointcut()).getExpression())
-				.isEqualTo("execution(* *.getSpouse())");
+			.isEqualTo("execution(* *.getSpouse())");
 	}
 
 	@Test
@@ -66,7 +66,7 @@ class AspectMetadataTests {
 		assertThat(am.getAjType().getPerClause().getKind()).isEqualTo(PerClauseKind.PERTHIS);
 		assertThat(am.getPerClausePointcut()).isInstanceOf(AspectJExpressionPointcut.class);
 		assertThat(((AspectJExpressionPointcut) am.getPerClausePointcut()).getExpression())
-				.isEqualTo("execution(* *.getSpouse())");
+			.isEqualTo("execution(* *.getSpouse())");
 	}
 
 }

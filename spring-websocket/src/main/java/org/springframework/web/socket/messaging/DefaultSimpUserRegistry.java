@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import org.springframework.context.event.SmartApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.user.DestinationUserNameProvider;
 import org.springframework.messaging.simp.user.SimpSession;
@@ -35,6 +34,7 @@ import org.springframework.messaging.simp.user.SimpSubscription;
 import org.springframework.messaging.simp.user.SimpSubscriptionMatcher;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.util.Assert;
 
 /**
@@ -43,7 +43,6 @@ import org.springframework.util.Assert;
  * track of connected users and their subscriptions.
  *
  * @author Rossen Stoyanchev
- * @author Sam Brannen
  * @since 4.2
  */
 public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicationListener {
@@ -85,16 +84,19 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 	public void onApplicationEvent(ApplicationEvent event) {
 		AbstractSubProtocolEvent subProtocolEvent = (AbstractSubProtocolEvent) event;
 		Message<?> message = subProtocolEvent.getMessage();
-		MessageHeaders headers = message.getHeaders();
 
-		String sessionId = SimpMessageHeaderAccessor.getSessionId(headers);
+		SimpMessageHeaderAccessor accessor =
+				MessageHeaderAccessor.getAccessor(message, SimpMessageHeaderAccessor.class);
+		Assert.state(accessor != null, "No SimpMessageHeaderAccessor");
+
+		String sessionId = accessor.getSessionId();
 		Assert.state(sessionId != null, "No session id");
 
 		if (event instanceof SessionSubscribeEvent) {
 			LocalSimpSession session = this.sessions.get(sessionId);
 			if (session != null) {
-				String id = SimpMessageHeaderAccessor.getSubscriptionId(headers);
-				String destination = SimpMessageHeaderAccessor.getDestination(headers);
+				String id = accessor.getSubscriptionId();
+				String destination = accessor.getDestination();
 				if (id != null && destination != null) {
 					session.addSubscription(id, destination);
 				}
@@ -106,13 +108,13 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 				return;
 			}
 			String name = user.getName();
-			if (user instanceof DestinationUserNameProvider destinationUserNameProvider) {
-				name = destinationUserNameProvider.getDestinationUserName();
+			if (user instanceof DestinationUserNameProvider) {
+				name = ((DestinationUserNameProvider) user).getDestinationUserName();
 			}
 			synchronized (this.sessionLock) {
 				LocalSimpUser simpUser = this.users.get(name);
 				if (simpUser == null) {
-					simpUser = new LocalSimpUser(name, user);
+					simpUser = new LocalSimpUser(name);
 					this.users.put(name, simpUser);
 				}
 				LocalSimpSession session = new LocalSimpSession(sessionId, simpUser);
@@ -135,7 +137,7 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 		else if (event instanceof SessionUnsubscribeEvent) {
 			LocalSimpSession session = this.sessions.get(sessionId);
 			if (session != null) {
-				String subscriptionId = SimpMessageHeaderAccessor.getSubscriptionId(headers);
+				String subscriptionId = accessor.getSubscriptionId();
 				if (subscriptionId != null) {
 					session.removeSubscription(subscriptionId);
 				}
@@ -191,25 +193,16 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 
 		private final String name;
 
-		private final Principal user;
-
 		private final Map<String, SimpSession> userSessions = new ConcurrentHashMap<>(1);
 
-		public LocalSimpUser(String userName, Principal user) {
+		public LocalSimpUser(String userName) {
 			Assert.notNull(userName, "User name must not be null");
 			this.name = userName;
-			this.user = user;
 		}
 
 		@Override
 		public String getName() {
 			return this.name;
-		}
-
-		@Nullable
-		@Override
-		public Principal getPrincipal() {
-			return this.user;
 		}
 
 		@Override
@@ -239,7 +232,7 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 		@Override
 		public boolean equals(@Nullable Object other) {
 			return (this == other ||
-					(other instanceof SimpUser otherSimpUser && getName().equals(otherSimpUser.getName())));
+					(other instanceof SimpUser && getName().equals(((SimpUser) other).getName())));
 		}
 
 		@Override
@@ -295,7 +288,7 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 		@Override
 		public boolean equals(@Nullable Object other) {
 			return (this == other ||
-					(other instanceof SimpSubscription otherSubscription && getId().equals(otherSubscription.getId())));
+					(other instanceof SimpSubscription && getId().equals(((SimpSubscription) other).getId())));
 		}
 
 		@Override
@@ -347,9 +340,10 @@ public class DefaultSimpUserRegistry implements SimpUserRegistry, SmartApplicati
 			if (this == other) {
 				return true;
 			}
-			if (!(other instanceof SimpSubscription otherSubscription)) {
+			if (!(other instanceof SimpSubscription)) {
 				return false;
 			}
+			SimpSubscription otherSubscription = (SimpSubscription) other;
 			return (getId().equals(otherSubscription.getId()) &&
 					getSession().getId().equals(otherSubscription.getSession().getId()));
 		}

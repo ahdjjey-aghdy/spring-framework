@@ -16,7 +16,7 @@
 
 package org.springframework.web.util;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.lang.Nullable;

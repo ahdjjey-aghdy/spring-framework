@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.springframework.messaging.simp.user;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,7 +33,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
@@ -211,7 +209,7 @@ public class MultiServerUserRegistry implements SimpUserRegistry, SmartApplicati
 		public UserRegistrySnapshot(String id, SimpUserRegistry registry) {
 			this.id = id;
 			Set<SimpUser> users = registry.getUsers();
-			this.users = CollectionUtils.newHashMap(users.size());
+			this.users = new HashMap<>(users.size());
 			for (SimpUser user : users) {
 				this.users.put(user.getName(), new TransferSimpUser(user));
 			}
@@ -275,7 +273,7 @@ public class MultiServerUserRegistry implements SimpUserRegistry, SmartApplicati
 		private String name = "";
 
 		// User sessions from "this" registry only (i.e. one server)
-		private final Set<TransferSimpSession> sessions;
+		private Set<TransferSimpSession> sessions;
 
 		// Cross-server session lookup (e.g. user connected to multiple servers)
 		@Nullable
@@ -309,12 +307,6 @@ public class MultiServerUserRegistry implements SimpUserRegistry, SmartApplicati
 		@Override
 		public String getName() {
 			return this.name;
-		}
-
-		@Nullable
-		@Override
-		public Principal getPrincipal() {
-			return null;
 		}
 
 		@Override
@@ -535,9 +527,10 @@ public class MultiServerUserRegistry implements SimpUserRegistry, SmartApplicati
 			if (this == other) {
 				return true;
 			}
-			if (!(other instanceof SimpSubscription otherSubscription)) {
+			if (!(other instanceof SimpSubscription)) {
 				return false;
 			}
+			SimpSubscription otherSubscription = (SimpSubscription) other;
 			return (getId().equals(otherSubscription.getId()) &&
 					ObjectUtils.nullSafeEquals(getSession(), otherSubscription.getSession()));
 		}

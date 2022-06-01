@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.charset.Charset;
 
@@ -83,12 +84,12 @@ public abstract class StreamUtils {
 			return "";
 		}
 
-		StringBuilder out = new StringBuilder(BUFFER_SIZE);
+		StringBuilder out = new StringBuilder();
 		InputStreamReader reader = new InputStreamReader(in, charset);
 		char[] buffer = new char[BUFFER_SIZE];
-		int charsRead;
-		while ((charsRead = reader.read(buffer)) != -1) {
-			out.append(buffer, 0, charsRead);
+		int bytesRead = -1;
+		while ((bytesRead = reader.read(buffer)) != -1) {
+			out.append(buffer, 0, bytesRead);
 		}
 		return out.toString();
 	}
@@ -96,6 +97,8 @@ public abstract class StreamUtils {
 	/**
 	 * Copy the contents of the given {@link ByteArrayOutputStream} into a {@link String}.
 	 * <p>This is a more effective equivalent of {@code new String(baos.toByteArray(), charset)}.
+	 * <p>As long as the {@code charset} is already available at the point of
+	 * invocation, no exception is expected to be thrown by this method.
 	 * @param baos the {@code ByteArrayOutputStream} to be copied into a String
 	 * @param charset the {@link Charset} to use to decode the bytes
 	 * @return the String that has been copied to (possibly empty)
@@ -104,8 +107,12 @@ public abstract class StreamUtils {
 	public static String copyToString(ByteArrayOutputStream baos, Charset charset) {
 		Assert.notNull(baos, "No ByteArrayOutputStream specified");
 		Assert.notNull(charset, "No Charset specified");
-
-		return baos.toString(charset);
+		try {
+			return baos.toString(charset.name());
+		}
+		catch (UnsupportedEncodingException ex) {
+			throw new RuntimeException("Failed to copy contents of ByteArrayOutputStream into a String", ex);
+		}
 	}
 
 	/**
@@ -120,11 +127,10 @@ public abstract class StreamUtils {
 		Assert.notNull(out, "No OutputStream specified");
 
 		out.write(in);
-		out.flush();
 	}
 
 	/**
-	 * Copy the contents of the given String to the given OutputStream.
+	 * Copy the contents of the given String to the given output OutputStream.
 	 * <p>Leaves the stream open when done.
 	 * @param in the String to copy from
 	 * @param charset the Charset
@@ -155,7 +161,7 @@ public abstract class StreamUtils {
 
 		int byteCount = 0;
 		byte[] buffer = new byte[BUFFER_SIZE];
-		int bytesRead;
+		int bytesRead = -1;
 		while ((bytesRead = in.read(buffer)) != -1) {
 			out.write(buffer, 0, bytesRead);
 			byteCount += bytesRead;
@@ -254,7 +260,6 @@ public abstract class StreamUtils {
 		Assert.notNull(out, "No OutputStream specified");
 		return new NonClosingOutputStream(out);
 	}
-
 
 	private static class NonClosingInputStream extends FilterInputStream {
 

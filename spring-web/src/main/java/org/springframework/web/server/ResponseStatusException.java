@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,27 @@
 
 package org.springframework.web.server;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.springframework.core.NestedExceptionUtils;
+import org.springframework.core.NestedRuntimeException;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
-import org.springframework.web.ErrorResponseException;
+import org.springframework.util.Assert;
 
 /**
- * Subclass of {@link ErrorResponseException} that accepts a "reason" and maps
- * it to the "detail" property of {@link org.springframework.http.ProblemDetail}.
+ * Base class for exceptions associated with specific HTTP response status codes.
  *
  * @author Rossen Stoyanchev
  * @author Juergen Hoeller
  * @since 5.0
  */
 @SuppressWarnings("serial")
-public class ResponseStatusException extends ErrorResponseException {
+public class ResponseStatusException extends NestedRuntimeException {
+
+	private final HttpStatus status;
 
 	@Nullable
 	private final String reason;
@@ -41,8 +46,8 @@ public class ResponseStatusException extends ErrorResponseException {
 	 * Constructor with a response status.
 	 * @param status the HTTP status (required)
 	 */
-	public ResponseStatusException(HttpStatusCode status) {
-		this(status, null);
+	public ResponseStatusException(HttpStatus status) {
+		this(status, null, null);
 	}
 
 	/**
@@ -51,20 +56,8 @@ public class ResponseStatusException extends ErrorResponseException {
 	 * @param status the HTTP status (required)
 	 * @param reason the associated reason (optional)
 	 */
-	public ResponseStatusException(HttpStatusCode status, @Nullable String reason) {
+	public ResponseStatusException(HttpStatus status, @Nullable String reason) {
 		this(status, reason, null);
-	}
-
-	/**
-	 * Constructor with a response status and a reason to add to the exception
-	 * message as explanation, as well as a nested exception.
-	 * @param rawStatusCode the HTTP status code value
-	 * @param reason the associated reason (optional)
-	 * @param cause a nested exception (optional)
-	 * @since 5.3
-	 */
-	public ResponseStatusException(int rawStatusCode, @Nullable String reason, @Nullable Throwable cause) {
-		this(HttpStatusCode.valueOf(rawStatusCode), reason, cause);
 	}
 
 	/**
@@ -74,11 +67,48 @@ public class ResponseStatusException extends ErrorResponseException {
 	 * @param reason the associated reason (optional)
 	 * @param cause a nested exception (optional)
 	 */
-	public ResponseStatusException(HttpStatusCode status, @Nullable String reason, @Nullable Throwable cause) {
-		super(status, cause);
+	public ResponseStatusException(HttpStatus status, @Nullable String reason, @Nullable Throwable cause) {
+		super(null, cause);
+		Assert.notNull(status, "HttpStatus is required");
+		this.status = status;
 		this.reason = reason;
 	}
 
+
+	/**
+	 * Return the HTTP status associated with this exception.
+	 */
+	public HttpStatus getStatus() {
+		return this.status;
+	}
+
+	/**
+	 * Return headers associated with the exception that should be added to the
+	 * error response, e.g. "Allow", "Accept", etc.
+	 * <p>The default implementation in this class returns an empty map.
+	 * @since 5.1.11
+	 * @deprecated as of 5.1.13 in favor of {@link #getResponseHeaders()}
+	 */
+	@Deprecated
+	public Map<String, String> getHeaders() {
+		return Collections.emptyMap();
+	}
+
+	/**
+	 * Return headers associated with the exception that should be added to the
+	 * error response, e.g. "Allow", "Accept", etc.
+	 * <p>The default implementation in this class returns empty headers.
+	 * @since 5.1.13
+	 */
+	public HttpHeaders getResponseHeaders() {
+		Map<String, String> headers = getHeaders();
+		if (headers.isEmpty()) {
+			return HttpHeaders.EMPTY;
+		}
+		HttpHeaders result = new HttpHeaders();
+		getHeaders().forEach(result::add);
+		return result;
+	}
 
 	/**
 	 * The reason explaining the exception (potentially {@code null} or empty).
@@ -88,31 +118,10 @@ public class ResponseStatusException extends ErrorResponseException {
 		return this.reason;
 	}
 
-	/**
-	 * Return headers to add to the error response, e.g. "Allow", "Accept", etc.
-	 * <p>By default, delegates to {@link #getResponseHeaders()} for backwards
-	 * compatibility.
-	 */
-	@Override
-	public HttpHeaders getHeaders() {
-		return getResponseHeaders();
-	}
-
-	/**
-	 * Return headers associated with the exception that should be added to the
-	 * error response, e.g. "Allow", "Accept", etc.
-	 * <p>The default implementation in this class returns empty headers.
-	 * @since 5.1.13
-	 * @deprecated as of 6.0 in favor of {@link #getHeaders()}
-	 */
-	@Deprecated
-	public HttpHeaders getResponseHeaders() {
-		return HttpHeaders.EMPTY;
-	}
 
 	@Override
 	public String getMessage() {
-		String msg = getStatusCode() + (this.reason != null ? " \"" + this.reason + "\"" : "");
+		String msg = this.status + (this.reason != null ? " \"" + this.reason + "\"" : "");
 		return NestedExceptionUtils.buildMessage(msg, getCause());
 	}
 

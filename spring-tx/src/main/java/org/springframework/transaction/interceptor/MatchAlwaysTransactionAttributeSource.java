@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import org.springframework.util.ObjectUtils;
  * methods being handled by a transaction interceptor.
  *
  * @author Colin Sampaleanu
- * @author Juergen Hoeller
  * @since 15.10.2003
  * @see org.springframework.transaction.interceptor.TransactionProxyFactoryBean
  * @see org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator
@@ -49,9 +48,6 @@ public class MatchAlwaysTransactionAttributeSource implements TransactionAttribu
 	 * @see org.springframework.transaction.interceptor.TransactionAttributeEditor
 	 */
 	public void setTransactionAttribute(TransactionAttribute transactionAttribute) {
-		if (transactionAttribute instanceof DefaultTransactionAttribute dta) {
-			dta.resolveAttributeStrings(null);
-		}
 		this.transactionAttribute = transactionAttribute;
 	}
 
@@ -68,9 +64,10 @@ public class MatchAlwaysTransactionAttributeSource implements TransactionAttribu
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof MatchAlwaysTransactionAttributeSource otherTas)) {
+		if (!(other instanceof MatchAlwaysTransactionAttributeSource)) {
 			return false;
 		}
+		MatchAlwaysTransactionAttributeSource otherTas = (MatchAlwaysTransactionAttributeSource) other;
 		return ObjectUtils.nullSafeEquals(this.transactionAttribute, otherTas.transactionAttribute);
 	}
 

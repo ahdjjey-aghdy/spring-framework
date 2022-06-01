@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.springframework.context.i18n.LocaleContext;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.Hints;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpCookie;
@@ -62,16 +63,15 @@ import org.springframework.web.util.UriUtils;
  * Default {@link ServerRequest.Builder} implementation.
  *
  * @author Arjen Poutsma
- * @author Sam Brannen
  * @since 5.1
  */
 class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 	private final List<HttpMessageReader<?>> messageReaders;
 
-	private final ServerWebExchange exchange;
+	private ServerWebExchange exchange;
 
-	private HttpMethod method;
+	private String methodName;
 
 	private URI uri;
 
@@ -84,22 +84,22 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 	private Flux<DataBuffer> body = Flux.empty();
 
 
-	DefaultServerRequestBuilder(ServerRequest other) {
+	public DefaultServerRequestBuilder(ServerRequest other) {
 		Assert.notNull(other, "ServerRequest must not be null");
 		this.messageReaders = other.messageReaders();
 		this.exchange = other.exchange();
-		this.method = other.method();
+		this.methodName = other.methodName();
 		this.uri = other.uri();
-		this.headers.addAll(other.headers().asHttpHeaders());
-		this.cookies.addAll(other.cookies());
-		this.attributes.putAll(other.attributes());
+		headers(headers -> headers.addAll(other.headers().asHttpHeaders()));
+		cookies(cookies -> cookies.addAll(other.cookies()));
+		attributes(attributes -> attributes.putAll(other.attributes()));
 	}
 
 
 	@Override
 	public ServerRequest.Builder method(HttpMethod method) {
 		Assert.notNull(method, "HttpMethod must not be null");
-		this.method = method;
+		this.methodName = method.name();
 		return this;
 	}
 
@@ -150,10 +150,11 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 	public ServerRequest.Builder body(String body) {
 		Assert.notNull(body, "Body must not be null");
 		releaseBody();
+		DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
 		this.body = Flux.just(body).
 				map(s -> {
 					byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-					return DefaultDataBufferFactory.sharedInstance.wrap(bytes);
+					return dataBufferFactory.wrap(bytes);
 				});
 		return this;
 	}
@@ -177,9 +178,9 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 	@Override
 	public ServerRequest build() {
 		ServerHttpRequest serverHttpRequest = new BuiltServerHttpRequest(this.exchange.getRequest().getId(),
-				this.method, this.uri, this.headers, this.cookies, this.body);
+				this.methodName, this.uri, this.headers, this.cookies, this.body);
 		ServerWebExchange exchange = new DelegatingServerWebExchange(
-				serverHttpRequest, this.attributes, this.exchange, this.messageReaders);
+				serverHttpRequest, this.exchange, this.messageReaders);
 		return new DefaultServerRequest(exchange, this.messageReaders);
 	}
 
@@ -190,7 +191,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 		private final String id;
 
-		private final HttpMethod method;
+		private final String method;
 
 		private final URI uri;
 
@@ -204,7 +205,7 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 		private final Flux<DataBuffer> body;
 
-		public BuiltServerHttpRequest(String id, HttpMethod method, URI uri, HttpHeaders headers,
+		public BuiltServerHttpRequest(String id, String method, URI uri, HttpHeaders headers,
 				MultiValueMap<String, HttpCookie> cookies, Flux<DataBuffer> body) {
 
 			this.id = id;
@@ -248,14 +249,8 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 		}
 
 		@Override
-		public HttpMethod getMethod() {
-			return this.method;
-		}
-
-		@Override
-		@Deprecated
 		public String getMethodValue() {
-			return this.method.name();
+			return this.method;
 		}
 
 		@Override
@@ -306,19 +301,16 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 
 		private final ServerHttpRequest request;
 
-		private final Map<String, Object> attributes;
-
 		private final ServerWebExchange delegate;
 
 		private final Mono<MultiValueMap<String, String>> formDataMono;
 
 		private final Mono<MultiValueMap<String, Part>> multipartDataMono;
 
-		DelegatingServerWebExchange(ServerHttpRequest request, Map<String, Object> attributes,
-				ServerWebExchange delegate, List<HttpMessageReader<?>> messageReaders) {
+		public DelegatingServerWebExchange(
+				ServerHttpRequest request, ServerWebExchange delegate, List<HttpMessageReader<?>> messageReaders) {
 
 			this.request = request;
-			this.attributes = attributes;
 			this.delegate = delegate;
 			this.formDataMono = initFormData(request, messageReaders);
 			this.multipartDataMono = initMultipartData(request, messageReaders);
@@ -367,15 +359,9 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 			}
 			return EMPTY_MULTIPART_DATA;
 		}
-
 		@Override
 		public ServerHttpRequest getRequest() {
 			return this.request;
-		}
-
-		@Override
-		public Map<String, Object> getAttributes() {
-			return this.attributes;
 		}
 
 		@Override
@@ -393,6 +379,11 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 		@Override
 		public ServerHttpResponse getResponse() {
 			return this.delegate.getResponse();
+		}
+
+		@Override
+		public Map<String, Object> getAttributes() {
+			return this.delegate.getAttributes();
 		}
 
 		@Override
@@ -451,5 +442,4 @@ class DefaultServerRequestBuilder implements ServerRequest.Builder {
 			return this.delegate.getLogPrefix();
 		}
 	}
-
 }

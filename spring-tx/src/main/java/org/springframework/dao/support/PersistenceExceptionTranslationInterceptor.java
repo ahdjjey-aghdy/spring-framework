@@ -16,12 +16,15 @@
 
 package org.springframework.dao.support;
 
+import java.util.Map;
+
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.lang.Nullable;
@@ -131,7 +134,6 @@ public class PersistenceExceptionTranslationInterceptor
 
 
 	@Override
-	@Nullable
 	public Object invoke(MethodInvocation mi) throws Throwable {
 		try {
 			return mi.proceed();
@@ -144,8 +146,7 @@ public class PersistenceExceptionTranslationInterceptor
 			else {
 				PersistenceExceptionTranslator translator = this.persistenceExceptionTranslator;
 				if (translator == null) {
-					Assert.state(this.beanFactory != null,
-							"Cannot use PersistenceExceptionTranslator autodetection without ListableBeanFactory");
+					Assert.state(this.beanFactory != null, "Cannot use PersistenceExceptionTranslator autodetection without ListableBeanFactory");
 					translator = detectPersistenceExceptionTranslators(this.beanFactory);
 					this.persistenceExceptionTranslator = translator;
 				}
@@ -156,15 +157,20 @@ public class PersistenceExceptionTranslationInterceptor
 
 	/**
 	 * Detect all PersistenceExceptionTranslators in the given BeanFactory.
-	 * @param bf the ListableBeanFactory to obtain PersistenceExceptionTranslators from
+	 * @param beanFactory the ListableBeanFactory to obtaining all
+	 * PersistenceExceptionTranslators from
 	 * @return a chained PersistenceExceptionTranslator, combining all
-	 * PersistenceExceptionTranslators found in the given bean factory
+	 * PersistenceExceptionTranslators found in the factory
 	 * @see ChainedPersistenceExceptionTranslator
 	 */
-	protected PersistenceExceptionTranslator detectPersistenceExceptionTranslators(ListableBeanFactory bf) {
+	protected PersistenceExceptionTranslator detectPersistenceExceptionTranslators(ListableBeanFactory beanFactory) {
 		// Find all translators, being careful not to activate FactoryBeans.
+		Map<String, PersistenceExceptionTranslator> pets = BeanFactoryUtils.beansOfTypeIncludingAncestors(
+				beanFactory, PersistenceExceptionTranslator.class, false, false);
 		ChainedPersistenceExceptionTranslator cpet = new ChainedPersistenceExceptionTranslator();
-		bf.getBeanProvider(PersistenceExceptionTranslator.class, false).orderedStream().forEach(cpet::addDelegate);
+		for (PersistenceExceptionTranslator pet : pets.values()) {
+			cpet.addDelegate(pet);
+		}
 		return cpet;
 	}
 

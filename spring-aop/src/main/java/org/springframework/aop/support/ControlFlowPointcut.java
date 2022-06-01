@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 package org.springframework.aop.support;
 
-import java.io.Serializable;
-import java.lang.reflect.Method;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.springframework.aop.ClassFilter;
 import org.springframework.aop.MethodMatcher;
 import org.springframework.aop.Pointcut;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Pointcut and method matcher for use in simple <b>cflow</b>-style pointcut.
@@ -45,7 +45,7 @@ public class ControlFlowPointcut implements Pointcut, ClassFilter, MethodMatcher
 	@Nullable
 	private final String methodName;
 
-	private final AtomicInteger evaluations = new AtomicInteger();
+	private final AtomicInteger evaluations = new AtomicInteger(0);
 
 
 	/**
@@ -128,9 +128,10 @@ public class ControlFlowPointcut implements Pointcut, ClassFilter, MethodMatcher
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof ControlFlowPointcut that)) {
+		if (!(other instanceof ControlFlowPointcut)) {
 			return false;
 		}
+		ControlFlowPointcut that = (ControlFlowPointcut) other;
 		return (this.clazz.equals(that.clazz)) && ObjectUtils.nullSafeEquals(this.methodName, that.methodName);
 	}
 
@@ -145,7 +146,7 @@ public class ControlFlowPointcut implements Pointcut, ClassFilter, MethodMatcher
 
 	@Override
 	public String toString() {
-		return getClass().getName() + ": class = " + this.clazz.getName() + "; methodName = " + this.methodName;
+		return getClass().getName() + ": class = " + this.clazz.getName() + "; methodName = " + methodName;
 	}
 
 }

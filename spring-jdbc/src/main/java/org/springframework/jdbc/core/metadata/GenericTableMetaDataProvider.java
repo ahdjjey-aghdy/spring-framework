@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ import org.springframework.lang.Nullable;
  *
  * @author Thomas Risberg
  * @author Juergen Hoeller
- * @author Sam Brannen
  * @since 2.5
  */
 public class GenericTableMetaDataProvider implements TableMetaDataProvider {
@@ -56,7 +55,7 @@ public class GenericTableMetaDataProvider implements TableMetaDataProvider {
 
 	/** the name of the user currently connected. */
 	@Nullable
-	private final String userName;
+	private String userName;
 
 	/** indicates whether the identifiers are uppercased. */
 	private boolean storesUpperCaseIdentifiers = true;
@@ -71,11 +70,11 @@ public class GenericTableMetaDataProvider implements TableMetaDataProvider {
 	private boolean generatedKeysColumnNameArraySupported = true;
 
 	/** database products we know not supporting the use of a String[] for generated keys. */
-	private final List<String> productsNotSupportingGeneratedKeysColumnNameArray =
+	private List<String> productsNotSupportingGeneratedKeysColumnNameArray =
 			Arrays.asList("Apache Derby", "HSQL Database Engine");
 
 	/** Collection of TableParameterMetaData objects. */
-	private final List<TableParameterMetaData> tableParameterMetaData = new ArrayList<>();
+	private List<TableParameterMetaData> tableParameterMetaData = new ArrayList<>();
 
 
 	/**
@@ -416,19 +415,15 @@ public class GenericTableMetaDataProvider implements TableMetaDataProvider {
 				TableParameterMetaData meta = new TableParameterMetaData(columnName, dataType, nullable);
 				this.tableParameterMetaData.add(meta);
 				if (logger.isDebugEnabled()) {
-					logger.debug("Retrieved meta-data: '" + meta.getParameterName() + "', sqlType=" +
-							meta.getSqlType() + ", nullable=" + meta.isNullable());
+					logger.debug("Retrieved meta-data: " + meta.getParameterName() + " " +
+							meta.getSqlType() + " " + meta.isNullable());
 				}
 			}
 		}
 		catch (SQLException ex) {
 			if (logger.isWarnEnabled()) {
-				logger.warn("Error while retrieving meta-data for table columns. " +
-						"Consider specifying explicit column names -- for example, via SimpleJdbcInsert#usingColumns().",
-						ex);
+				logger.warn("Error while retrieving meta-data for table columns: " + ex.getMessage());
 			}
-			// Clear the metadata so that we don't retain a partial list of column names
-			this.tableParameterMetaData.clear();
 		}
 		finally {
 			JdbcUtils.closeResultSet(tableColumns);
@@ -437,7 +432,7 @@ public class GenericTableMetaDataProvider implements TableMetaDataProvider {
 
 
 	/**
-	 * Class representing table meta-data.
+	 * Inner class representing table meta-data.
 	 */
 	private static class TableMetaData {
 

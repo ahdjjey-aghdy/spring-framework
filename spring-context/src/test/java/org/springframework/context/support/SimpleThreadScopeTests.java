@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,15 +30,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Arjen Poutsma
  * @author Sam Brannen
  */
-class SimpleThreadScopeTests {
+public class SimpleThreadScopeTests {
 
 	private final ApplicationContext applicationContext =
 			new ClassPathXmlApplicationContext("simpleThreadScopeTests.xml", getClass());
 
 
 	@Test
-	void getFromScope() throws Exception {
-		String name = "removeNodeStatusScreen";
+	public void getFromScope() throws Exception {
+		String name = "threadScopedObject";
 		TestBean bean = this.applicationContext.getBean(name, TestBean.class);
 		assertThat(bean).isNotNull();
 		assertThat(this.applicationContext.getBean(name)).isSameAs(bean);
@@ -47,11 +47,11 @@ class SimpleThreadScopeTests {
 	}
 
 	@Test
-	void getMultipleInstances() throws Exception {
+	public void getMultipleInstances() throws Exception {
 		// Arrange
 		TestBean[] beans = new TestBean[2];
-		Thread thread1 = new Thread(() -> beans[0] = applicationContext.getBean("removeNodeStatusScreen", TestBean.class));
-		Thread thread2 = new Thread(() -> beans[1] = applicationContext.getBean("removeNodeStatusScreen", TestBean.class));
+		Thread thread1 = new Thread(() -> beans[0] = applicationContext.getBean("threadScopedObject", TestBean.class));
+		Thread thread2 = new Thread(() -> beans[1] = applicationContext.getBean("threadScopedObject", TestBean.class));
 		// Act
 		thread1.start();
 		thread2.start();

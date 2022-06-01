@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpSession;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -238,6 +239,16 @@ public class PrintingResultHandlerTests {
 	}
 
 	@Test
+	public void printResponseWithoutCharacterEncoding() throws Exception {
+		this.response.setCharacterEncoding(null);
+		this.response.getWriter().print("text");
+
+		this.handler.handle(this.mvcResult);
+
+		assertValue("MockHttpServletResponse", "Body", "<no character encoding set>");
+	}
+
+	@Test
 	public void printHandlerNull() throws Exception {
 		StubMvcResult mvcResult = new StubMvcResult(this.request, null, null, null, null, null, this.response);
 		this.handler.handle(mvcResult);
@@ -347,7 +358,7 @@ public class PrintingResultHandlerTests {
 
 			private String printedHeading;
 
-			private final Map<String, Map<String, Object>> printedValues = new HashMap<>();
+			private Map<String, Map<String, Object>> printedValues = new HashMap<>();
 
 			@Override
 			public void printHeading(String heading) {

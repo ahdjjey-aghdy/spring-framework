@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLSession;
 
@@ -34,8 +34,11 @@ import reactor.core.publisher.Flux;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DataBufferWrapper;
+import org.springframework.core.io.buffer.PooledDataBuffer;
 import org.springframework.http.HttpCookie;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
@@ -52,9 +55,6 @@ import org.springframework.util.StringUtils;
  */
 class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 
-	private static final AtomicLong logPrefixIndex = new AtomicLong();
-
-
 	private final HttpServerExchange exchange;
 
 	private final RequestBodyPublisher body;
@@ -63,7 +63,7 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 	public UndertowServerHttpRequest(HttpServerExchange exchange, DataBufferFactory bufferFactory)
 			throws URISyntaxException {
 
-		super(initUri(exchange), "", new UndertowHeadersAdapter(exchange.getRequestHeaders()));
+		super(initUri(exchange), "", initHeaders(exchange));
 		this.exchange = exchange;
 		this.body = new RequestBodyPublisher(exchange, bufferFactory);
 		this.body.registerListeners(exchange);
@@ -77,22 +77,18 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		return new URI(requestUriAndQuery);
 	}
 
-	@Override
-	public HttpMethod getMethod() {
-		return HttpMethod.valueOf(this.exchange.getRequestMethod().toString());
+	private static HttpHeaders initHeaders(HttpServerExchange exchange) {
+		return new HttpHeaders(new UndertowHeadersAdapter(exchange.getRequestHeaders()));
 	}
 
 	@Override
-	@Deprecated
 	public String getMethodValue() {
 		return this.exchange.getRequestMethod().toString();
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	protected MultiValueMap<String, HttpCookie> initCookies() {
 		MultiValueMap<String, HttpCookie> cookies = new LinkedMultiValueMap<>();
-		// getRequestCookies() is deprecated in Undertow 2.2
 		for (String name : this.exchange.getRequestCookies().keySet()) {
 			Cookie cookie = this.exchange.getRequestCookies().get(name);
 			HttpCookie httpCookie = new HttpCookie(name, cookie.getValue());
@@ -102,15 +98,13 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 	}
 
 	@Override
-	@Nullable
-	public InetSocketAddress getLocalAddress() {
-		return this.exchange.getDestinationAddress();
+	public InetSocketAddress getRemoteAddress() {
+		return this.exchange.getSourceAddress();
 	}
 
 	@Override
-	@Nullable
-	public InetSocketAddress getRemoteAddress() {
-		return this.exchange.getSourceAddress();
+	public InetSocketAddress getLocalAddress() {
+		return this.exchange.getDestinationAddress();
 	}
 
 	@Nullable
@@ -136,8 +130,7 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 
 	@Override
 	protected String initId() {
-		return ObjectUtils.getIdentityHexString(this.exchange.getConnection()) +
-				"-" + logPrefixIndex.incrementAndGet();
+		return ObjectUtils.getIdentityHexString(this.exchange.getConnection());
 	}
 
 
@@ -182,7 +175,8 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		@Nullable
 		protected DataBuffer read() throws IOException {
 			PooledByteBuffer pooledByteBuffer = this.byteBufferPool.allocate();
-			try (pooledByteBuffer) {
+			boolean release = true;
+			try {
 				ByteBuffer byteBuffer = pooledByteBuffer.getBuffer();
 				int read = this.channel.read(byteBuffer);
 
@@ -192,14 +186,19 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 
 				if (read > 0) {
 					byteBuffer.flip();
-					DataBuffer dataBuffer = this.bufferFactory.allocateBuffer(read);
-					dataBuffer.write(byteBuffer);
-					return dataBuffer;
+					DataBuffer dataBuffer = this.bufferFactory.wrap(byteBuffer);
+					release = false;
+					return new UndertowDataBuffer(dataBuffer, pooledByteBuffer);
 				}
 				else if (read == -1) {
 					onAllDataRead();
 				}
 				return null;
+			}
+			finally {
+				if (release && pooledByteBuffer.isOpen()) {
+					pooledByteBuffer.close();
+				}
 			}
 		}
 
@@ -207,6 +206,61 @@ class UndertowServerHttpRequest extends AbstractServerHttpRequest {
 		protected void discardData() {
 			// Nothing to discard since we pass data buffers on immediately..
 		}
+	}
+
+
+	private static class UndertowDataBuffer extends DataBufferWrapper implements PooledDataBuffer {
+
+		private final PooledByteBuffer pooledByteBuffer;
+
+		private final AtomicInteger refCount;
+
+
+		public UndertowDataBuffer(DataBuffer dataBuffer, PooledByteBuffer pooledByteBuffer) {
+			super(dataBuffer);
+			this.pooledByteBuffer = pooledByteBuffer;
+			this.refCount = new AtomicInteger(1);
+		}
+
+		private UndertowDataBuffer(DataBuffer dataBuffer, PooledByteBuffer pooledByteBuffer,
+				AtomicInteger refCount) {
+			super(dataBuffer);
+			this.refCount = refCount;
+			this.pooledByteBuffer = pooledByteBuffer;
+		}
+
+		@Override
+		public boolean isAllocated() {
+			return this.refCount.get() > 0;
+		}
+
+		@Override
+		public PooledDataBuffer retain() {
+			this.refCount.incrementAndGet();
+			DataBufferUtils.retain(dataBuffer());
+			return this;
+		}
+
+		@Override
+		public boolean release() {
+			int refCount = this.refCount.decrementAndGet();
+			if (refCount == 0) {
+				try {
+					return DataBufferUtils.release(dataBuffer());
+				}
+				finally {
+					this.pooledByteBuffer.close();
+				}
+			}
+			return false;
+		}
+
+		@Override
+		public DataBuffer slice(int index, int length) {
+			DataBuffer slice = dataBuffer().slice(index, length);
+			return new UndertowDataBuffer(slice, this.pooledByteBuffer, this.refCount);
+		}
+
 	}
 
 }

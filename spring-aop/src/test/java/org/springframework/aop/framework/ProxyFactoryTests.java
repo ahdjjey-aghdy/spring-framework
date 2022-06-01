@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,10 @@
 
 package org.springframework.aop.framework;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.accessibility.Accessible;
-import javax.swing.JFrame;
-import javax.swing.RootPaneContainer;
-
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.aop.Advisor;
 import org.springframework.aop.interceptor.DebugInterceptor;
 import org.springframework.aop.support.AopUtils;
@@ -43,8 +35,13 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.testfixture.TimeStamped;
 
+import javax.accessibility.Accessible;
+import javax.swing.*;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatRuntimeException;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Also tests AdvisedSupport and ProxyCreatorSupport superclasses.
@@ -183,7 +180,7 @@ public class ProxyFactoryTests {
 	}
 
 	@Test
-	public void testGetsAllInterfaces() {
+	public void testGetsAllInterfaces() throws Exception {
 		// Extend to get new interface
 		class TestBeanSubclass extends TestBean implements Comparable<Object> {
 			@Override
@@ -240,16 +237,6 @@ public class ProxyFactoryTests {
 		assertThat(factory.countAdvicesOfType(NopInterceptor.class) == 2).isTrue();
 	}
 
-	@Test
-	public void testSealedInterfaceExclusion() {
-		// String implements ConstantDesc on JDK 12+, sealed as of JDK 17
-		ProxyFactory factory = new ProxyFactory(new String());
-		NopInterceptor di = new NopInterceptor();
-		factory.addAdvice(0, di);
-		Object proxy = factory.getProxy();
-		assertThat(proxy).isInstanceOf(CharSequence.class);
-	}
-
 	/**
 	 * Should see effect immediately on behavior.
 	 */
@@ -277,7 +264,7 @@ public class ProxyFactoryTests {
 
 		assertThat(config.getAdvisors().length == oldCount).isTrue();
 
-		assertThatRuntimeException()
+		assertThatExceptionOfType(RuntimeException.class)
 				.as("Existing object won't implement this interface any more")
 				.isThrownBy(ts::getTimeStamp); // Existing reference will fail
 

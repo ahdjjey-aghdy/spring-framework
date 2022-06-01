@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,15 @@
 
 package org.springframework.aop.framework.adapter;
 
+import org.aopalliance.intercept.MethodInvocation;
+import org.junit.jupiter.api.Test;
+import org.springframework.aop.testfixture.advice.MyThrowsHandler;
+
 import java.io.FileNotFoundException;
 import java.rmi.ConnectException;
 import java.rmi.RemoteException;
 
-import org.aopalliance.intercept.MethodInvocation;
-import org.junit.jupiter.api.Test;
-
-import org.springframework.aop.testfixture.advice.MyThrowsHandler;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatException;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -64,7 +60,9 @@ public class ThrowsAdviceInterceptorTests {
 		Exception ex = new Exception();
 		MethodInvocation mi = mock(MethodInvocation.class);
 		given(mi.proceed()).willThrow(ex);
-		assertThatException().isThrownBy(() -> ti.invoke(mi)).isSameAs(ex);
+		assertThatExceptionOfType(Exception.class).isThrownBy(() ->
+				ti.invoke(mi))
+			.isSameAs(ex);
 		assertThat(th.getCalls()).isEqualTo(0);
 	}
 

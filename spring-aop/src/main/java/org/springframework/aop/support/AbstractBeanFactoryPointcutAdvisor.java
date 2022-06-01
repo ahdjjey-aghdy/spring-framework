@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,15 @@
 
 package org.springframework.aop.support;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-
 import org.aopalliance.aop.Advice;
-
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
 
 /**
  * Abstract BeanFactory-based PointcutAdvisor that allows for any Advice
@@ -137,7 +136,7 @@ public abstract class AbstractBeanFactoryPointcutAdvisor extends AbstractPointcu
 		StringBuilder sb = new StringBuilder(getClass().getName());
 		sb.append(": advice ");
 		if (this.adviceBeanName != null) {
-			sb.append("bean '").append(this.adviceBeanName).append('\'');
+			sb.append("bean '").append(this.adviceBeanName).append("'");
 		}
 		else {
 			sb.append(this.advice);

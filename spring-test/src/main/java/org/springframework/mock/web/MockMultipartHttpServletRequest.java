@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,15 @@
 package org.springframework.mock.web;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Part;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.Part;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -35,7 +33,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
@@ -103,7 +100,12 @@ public class MockMultipartHttpServletRequest extends MockHttpServletRequest impl
 	@Override
 	public List<MultipartFile> getFiles(String name) {
 		List<MultipartFile> multipartFiles = this.multipartFiles.get(name);
-		return Objects.requireNonNullElse(multipartFiles, Collections.emptyList());
+		if (multipartFiles != null) {
+			return multipartFiles;
+		}
+		else {
+			return Collections.emptyList();
+		}
 	}
 
 	@Override
@@ -137,9 +139,7 @@ public class MockMultipartHttpServletRequest extends MockHttpServletRequest impl
 
 	@Override
 	public HttpMethod getRequestMethod() {
-		String method = getMethod();
-		Assert.state(method != null, "Method must not be null");
-		return HttpMethod.valueOf(method);
+		return HttpMethod.resolve(getMethod());
 	}
 
 	@Override
@@ -155,28 +155,15 @@ public class MockMultipartHttpServletRequest extends MockHttpServletRequest impl
 
 	@Override
 	public HttpHeaders getMultipartHeaders(String paramOrFileName) {
-		MultipartFile file = getFile(paramOrFileName);
-		if (file != null) {
+		String contentType = getMultipartContentType(paramOrFileName);
+		if (contentType != null) {
 			HttpHeaders headers = new HttpHeaders();
-			if (file.getContentType() != null) {
-				headers.add(HttpHeaders.CONTENT_TYPE, file.getContentType());
-			}
+			headers.add("Content-Type", contentType);
 			return headers;
 		}
-		try {
-			Part part = getPart(paramOrFileName);
-			if (part != null) {
-				HttpHeaders headers = new HttpHeaders();
-				for (String headerName : part.getHeaderNames()) {
-					headers.put(headerName, new ArrayList<>(part.getHeaders(headerName)));
-				}
-				return headers;
-			}
+		else {
+			return null;
 		}
-		catch (Throwable ex) {
-			throw new MultipartException("Could not access multipart servlet request", ex);
-		}
-		return null;
 	}
 
 }

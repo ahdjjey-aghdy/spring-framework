@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 the original author or authors.
+ * Copyright 2002-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import org.springframework.util.ObjectUtils;
 
 /**
  * Contextual descriptor about a type to convert from or to.
- * <p>Capable of representing arrays and generic collection types.
+ * Capable of representing arrays and generic collection types.
  *
  * @author Keith Donald
  * @author Andy Clement
@@ -345,9 +345,9 @@ public class TypeDescriptor implements Serializable {
 	 * from the provided collection or array element.
 	 * <p>Narrows the {@link #getElementTypeDescriptor() elementType} property to the class
 	 * of the provided collection or array element. For example, if this describes a
-	 * {@code java.util.List<java.lang.Number>} and the element argument is a
+	 * {@code java.util.List&lt;java.lang.Number&lt;} and the element argument is an
 	 * {@code java.lang.Integer}, the returned TypeDescriptor will be {@code java.lang.Integer}.
-	 * If this describes a {@code java.util.List<?>} and the element argument is a
+	 * If this describes a {@code java.util.List&lt;?&gt;} and the element argument is an
 	 * {@code java.lang.Integer}, the returned TypeDescriptor will be {@code java.lang.Integer}
 	 * as well.
 	 * <p>Annotation and nested type context will be preserved in the narrowed
@@ -388,9 +388,9 @@ public class TypeDescriptor implements Serializable {
 	 * from the provided map key.
 	 * <p>Narrows the {@link #getMapKeyTypeDescriptor() mapKeyType} property
 	 * to the class of the provided map key. For example, if this describes a
-	 * {@code java.util.Map<java.lang.Number, java.lang.String>} and the key
+	 * {@code java.util.Map&lt;java.lang.Number, java.lang.String&lt;} and the key
 	 * argument is a {@code java.lang.Integer}, the returned TypeDescriptor will be
-	 * {@code java.lang.Integer}. If this describes a {@code java.util.Map<?, ?>}
+	 * {@code java.lang.Integer}. If this describes a {@code java.util.Map&lt;?, ?&gt;}
 	 * and the key argument is a {@code java.lang.Integer}, the returned
 	 * TypeDescriptor will be {@code java.lang.Integer} as well.
 	 * <p>Annotation and nested type context will be preserved in the narrowed
@@ -425,9 +425,9 @@ public class TypeDescriptor implements Serializable {
 	 * from the provided map value.
 	 * <p>Narrows the {@link #getMapValueTypeDescriptor() mapValueType} property
 	 * to the class of the provided map value. For example, if this describes a
-	 * {@code java.util.Map<java.lang.String, java.lang.Number>} and the value
+	 * {@code java.util.Map&lt;java.lang.String, java.lang.Number&lt;} and the value
 	 * argument is a {@code java.lang.Integer}, the returned TypeDescriptor will be
-	 * {@code java.lang.Integer}. If this describes a {@code java.util.Map<?, ?>}
+	 * {@code java.lang.Integer}. If this describes a {@code java.util.Map&lt;?, ?&gt;}
 	 * and the value argument is a {@code java.lang.Integer}, the returned
 	 * TypeDescriptor will be {@code java.lang.Integer} as well.
 	 * <p>Annotation and nested type context will be preserved in the narrowed
@@ -458,9 +458,10 @@ public class TypeDescriptor implements Serializable {
 		if (this == other) {
 			return true;
 		}
-		if (!(other instanceof TypeDescriptor otherDesc)) {
+		if (!(other instanceof TypeDescriptor)) {
 			return false;
 		}
+		TypeDescriptor otherDesc = (TypeDescriptor) other;
 		if (getType() != otherDesc.getType()) {
 			return false;
 		}
@@ -512,9 +513,9 @@ public class TypeDescriptor implements Serializable {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		for (Annotation ann : getAnnotations()) {
-			builder.append('@').append(ann.annotationType().getName()).append(' ');
+			builder.append("@").append(ann.annotationType().getName()).append(' ');
 		}
-		builder.append(getResolvableType());
+		builder.append(getResolvableType().toString());
 		return builder.toString();
 	}
 
